@@ -1,0 +1,54 @@
+[package]
+name = "voxforge"
+version = "0.1.0"
+description = "Voice-to-text for Linux"
+authors = ["VoxForge Contributors"]
+edition = "2021"
+
+[lib]
+name = "voxforge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "voxforge"
+path = "src/main.rs"
+
+[dependencies]
+tauri = { version = "2.0", features = [
+  "shell-open",
+  "system-tray",
+  "notification",
+] }
+tauri-plugin-global-shortcut = "2.0"
+tauri-plugin-clipboard-manager = "2.0"
+tauri-plugin-os = "2.0"
+tauri-plugin-dialog = "2.0"
+
+tokio = { version = "1.35", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio-util = "0.7"
+
+# Audio
+cpal = "0.17"
+hound = "3.5"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
+
+# Config
+serde_yaml = "0.9"
+directories = "5.0"
+
+# Utils
+anyhow = "1.0"
+thiserror = "1.0"
+log = "0.4"
+env_logger = "0.11"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Database
+rusqlite = { version = "0.30", features = ["bundled", "chrono", "uuid"] }
+
+[dev-dependencies]

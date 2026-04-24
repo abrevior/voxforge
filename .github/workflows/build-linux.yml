@@ -1,0 +1,116 @@
+name: Build Linux
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Format check (Rust)
+        run: cargo fmt --all -- --check
+        continue-on-error: true
+
+      - name: Lint (Rust)
+        run: cargo clippy --all --all-targets -- -D warnings
+        continue-on-error: true
+
+      - name: Format check (TypeScript)
+        run: npm run format -- --check
+        continue-on-error: true
+
+      - name: Lint (TypeScript)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run tests
+        run: cargo test -p voxforge --lib
+        continue-on-error: true
+
+      - name: Build Tauri app
+        run: cargo tauri build
+
+      - name: List build artifacts
+        run: |
+          echo "=== Build artifacts ==="
+          find src-tauri/target/release/bundle -type f | head -20
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: voxforge-x86_64.AppImage
+          path: src-tauri/target/release/bundle/appimage/voxforge_*.AppImage*
+          if-no-files-found: ignore
+
+      - name: Upload deb package
+        uses: actions/upload-artifact@v4
+        with:
+          name: voxforge-amd64.deb
+          path: src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: ignore
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          files: |
+            src-tauri/target/release/bundle/appimage/voxforge_*.AppImage*
+            src-tauri/target/release/bundle/deb/*.deb
+          body: |
+            ## VoxForge Release
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) for details.
+
+            ### Linux Binaries
+            - **AppImage** — Universal Linux binary (works on most distributions)
+            - **DEB** — For Debian/Ubuntu systems
+
+            #### Installation
+            ```bash
+            # AppImage
+            chmod +x voxforge_*.AppImage
+            ./voxforge_*.AppImage
+
+            # DEB
+            sudo apt install ./voxforge_*.deb
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

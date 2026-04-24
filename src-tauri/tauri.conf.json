@@ -1,0 +1,40 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "VoxForge",
+        "width": 900,
+        "height": 700,
+        "minWidth": 400,
+        "minHeight": 300,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "deb": {
+      "depends": [
+        "xdotool",
+        "libssl3"
+      ]
+    },
+    "appimage": {
+      "bundleMediaFramework": false
+    }
+  }
+}

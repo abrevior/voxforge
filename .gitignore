@@ -1,0 +1,55 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+src-tauri/target/
+
+# Node.js
+node_modules/
+dist/
+npm-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# Tauri
+src-tauri/target/
+src-tauri/WixUI*.wxs
+.cargo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.iml
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Config (local user-specific)
+.config/voxforge/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+*.exe
+*.o
+*.a
+
+# Logs
+logs/
+*.log
+
+# Bundled app
+src-tauri/target/release/bundle/

@@ -1,4 +1,7 @@
 {
+  "productName": "VoxForge",
+  "version": "0.1.0",
+  "identifier": "app.voxforge",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
@@ -24,17 +27,18 @@
   "bundle": {
     "active": true,
     "targets": [
-      "deb",
-      "appimage"
+      "deb"
     ],
-    "deb": {
-      "depends": [
-        "xdotool",
-        "libssl3"
-      ]
-    },
-    "appimage": {
-      "bundleMediaFramework": false
+    "linux": {
+      "deb": {
+        "depends": [
+          "xdotool",
+          "libssl3"
+        ]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
     }
   }
 }

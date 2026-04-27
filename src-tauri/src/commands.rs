@@ -6,28 +6,28 @@ use crate::transcribe::TranscribeClient;
 use tauri::State;
 
 #[tauri::command]
-pub async fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
+pub fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
     state.set_state(RecordingState::Recording);
-    let mut recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+    let mut recorder = state.recorder.lock();
     recorder.start().map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn stop_recording(state: State<'_, AppState>) -> Result<Vec<u8>, String> {
-    let mut recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+pub fn stop_recording(state: State<'_, AppState>) -> Result<Vec<u8>, String> {
+    let mut recorder = state.recorder.lock();
     recorder.stop().map_err(|e| e.to_string())?;
     recorder.get_wav_bytes().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn transcribe(
+pub fn transcribe(
     audio_bytes: Vec<u8>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     state.set_state(RecordingState::Processing);
 
-    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let config = state.config.lock();
     let client = TranscribeClient::new(
         config.openai_api_key.clone(),
         config.openai_api_base.clone(),
@@ -37,21 +37,21 @@ pub async fn transcribe(
 
     drop(config);
 
-    let text = client
-        .transcribe(audio_bytes, &language)
-        .await
-        .map_err(|e| e.to_string())?;
+    let text = tauri::async_runtime::block_on(async {
+        client.transcribe(audio_bytes, &language).await
+    })
+    .map_err(|e| e.to_string())?;
 
     state.set_state(RecordingState::Idle);
     Ok(text)
 }
 
 #[tauri::command]
-pub async fn inject_or_copy(
+pub fn inject_or_copy(
     text: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let config = state.config.lock();
     let output_mode = config.output_mode.clone();
     drop(config);
 
@@ -65,66 +65,66 @@ pub async fn inject_or_copy(
 }
 
 #[tauri::command]
-pub async fn save_to_history(
+pub fn save_to_history(
     text: String,
     duration: f32,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let config = state.config.lock();
     let language = config.language.clone();
     drop(config);
 
-    let history = state.history.lock().map_err(|e| e.to_string())?;
+    let history = state.history.lock();
     history
         .save(text, language, duration)
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_history(state: State<'_, AppState>) -> Result<Vec<HistoryEntry>, String> {
-    let history = state.history.lock().map_err(|e| e.to_string())?;
+pub fn get_history(state: State<'_, AppState>) -> Result<Vec<HistoryEntry>, String> {
+    let history = state.history.lock();
     history.get_all().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn delete_history_entry(
+pub fn delete_history_entry(
     id: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let history = state.history.lock().map_err(|e| e.to_string())?;
+    let history = state.history.lock();
     history.delete(&id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
-    let history = state.history.lock().map_err(|e| e.to_string())?;
+pub fn clear_history(state: State<'_, AppState>) -> Result<(), String> {
+    let history = state.history.lock();
     history.clear().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_config(state: State<'_, AppState>) -> Result<Config, String> {
-    let config = state.config.lock().map_err(|e| e.to_string())?;
+pub fn get_config(state: State<'_, AppState>) -> Result<Config, String> {
+    let config = state.config.lock();
     Ok(config.clone())
 }
 
 #[tauri::command]
-pub async fn save_config(
+pub fn save_config(
     config: Config,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     config.save().map_err(|e| e.to_string())?;
-    let mut state_config = state.config.lock().map_err(|e| e.to_string())?;
+    let mut state_config = state.config.lock();
     *state_config = config;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn get_recording_state(state: State<'_, AppState>) -> Result<String, String> {
+pub fn get_recording_state(state: State<'_, AppState>) -> Result<String, String> {
     Ok(serde_json::to_string(&state.get_state()).map_err(|e| e.to_string())?)
 }
 
 #[tauri::command]
-pub async fn get_rms_level(state: State<'_, AppState>) -> Result<f32, String> {
-    let recorder = state.recorder.lock().map_err(|e| e.to_string())?;
+pub fn get_rms_level(state: State<'_, AppState>) -> Result<f32, String> {
+    let recorder = state.recorder.lock();
     Ok(recorder.get_rms_level())
 }

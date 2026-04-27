@@ -1,7 +1,8 @@
 use crate::audio::AudioRecorder;
 use crate::config::Config;
 use crate::history::HistoryManager;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum RecordingState {
@@ -31,10 +32,10 @@ impl AppState {
     }
 
     pub fn get_state(&self) -> RecordingState {
-        self.state.lock().unwrap().clone()
+        self.state.lock().clone()
     }
 
     pub fn set_state(&self, state: RecordingState) {
-        *self.state.lock().unwrap() = state;
+        *self.state.lock() = state;
     }
 }

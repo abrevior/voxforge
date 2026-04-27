@@ -19,7 +19,7 @@ impl AudioRecorder {
     pub fn new() -> Self {
         let config = StreamConfig {
             channels: CHANNELS,
-            sample_rate: cpal::SampleRate(SAMPLE_RATE),
+            sample_rate: u32::from(SAMPLE_RATE).into(),
             buffer_size: cpal::BufferSize::Default,
         };
 
@@ -53,7 +53,7 @@ impl AudioRecorder {
                 }
 
                 let mut frames = frames.lock().unwrap();
-                for &sample in data.as_slice() {
+                for &sample in data {
                     frames.push(sample);
                 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { appWindow } from "@tauri-apps/api/window";
-import { invoke } from "@tauri-apps/api/tauri";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { Recording } from "./components/Recording";
 import { Settings } from "./components/Settings";
 import { History } from "./components/History";
@@ -16,6 +16,8 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
+    const appWindow = getCurrentWindow();
+
     // Listen for hotkey events
     const unlistenStart = appWindow.listen("hotkey:start", () => {
       handleStartRecording();
@@ -67,6 +69,7 @@ export default function App() {
 
   const handleStartRecording = async () => {
     try {
+      const appWindow = getCurrentWindow();
       setRecordingState("recording");
       setIsRecording(true);
       await invoke("start_recording");

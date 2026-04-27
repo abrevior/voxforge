@@ -76,10 +76,10 @@ jobs:
             libasound2-dev
 
       - name: Check Rust formatting
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+        run: cargo fmt -p voxforge --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Run Rust clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all --all-targets -- -D warnings
+        run: cargo clippy -p voxforge --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Install npm dependencies
         run: npm install

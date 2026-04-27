@@ -7,30 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] - 2026-04-27
+
 ### Added
-- Initial Rust + Tauri + React rewrite (from Python + PyQt6)
-- Global hotkey listener for recording
-- Real-time audio waveform visualization
-- Transcription history with search
-- Settings dialog (API key, language, hotkeys)
-- System tray with state indicator (idle/recording/processing)
-- Multi-language UI support (Ukrainian, English)
-- Support for any OpenAI Whisper language
-- Text injection via xdotool (X11) or ydotool (Wayland)
-- Automatic config persistence
-- Keyboard shortcut to open history
+- Tauri 2.x compatibility upgrade
+- Improved build system with Cargo build.rs
+- .deb package bundling support
 
 ### Changed
-- **Technology stack:** Python → Rust backend, PyQt6 → React frontend
-- **Binary size:** ~200MB (PyInstaller) → ~50MB (Tauri)
-- **Performance:** Faster startup and lower memory usage
+- **Tauri version:** 1.x → 2.x
+- Updated to new @tauri-apps/api imports (core module)
+- Migrated state management to parking_lot::Mutex (better async support)
+- Simplified hotkey registration system
+- Improved window API compatibility (getCurrentWindow)
 
 ### Fixed
-- Audio recording on modern Linux kernels
-
-### Removed
-- PyQt6 dependency
-- Terminal-only mode (GUI-first approach)
+- Build system compatibility with latest Tauri toolchain
+- Icon asset handling for Linux bundling
+- TypeScript API import paths for Tauri 2.x
 
 ---
 

@@ -30,7 +30,8 @@ jobs:
             libayatana-appindicator3-dev \
             libasound2-dev \
             libsoup-3.0-dev \
-            libwebkitgtk-6.0-dev
+            libwebkitgtk-6.0-dev \
+            xdotool
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -79,6 +80,7 @@ jobs:
             libasound2-dev \
             libsoup-3.0-dev \
             libwebkitgtk-6.0-dev \
+            xdotool \
             libasound2-dev
 
       - name: Check Rust formatting

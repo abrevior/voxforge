@@ -34,7 +34,8 @@ jobs:
             libxcb-shape0-dev \
             libxcb-xfixes0-dev \
             libasound2-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libwebkitgtk-6.0-dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

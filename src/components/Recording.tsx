@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
 import { RecordingState } from "../types/api";
 
 interface RecordingProps {
@@ -11,7 +10,7 @@ interface RecordingProps {
 export const Recording: React.FC<RecordingProps> = ({
   state,
   rmsLevel,
-  onTranscriptionComplete,
+  onTranscriptionComplete: _onTranscriptionComplete,
 }) => {
   const [displayText, setDisplayText] = useState("");
 

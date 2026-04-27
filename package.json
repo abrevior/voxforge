@@ -8,7 +8,7 @@
     "build": "cargo tauri build",
     "preview": "vite preview",
     "format": "prettier --write src",
-    "lint": "eslint src --ext ts,tsx",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,11 +19,11 @@
     "@tauri-apps/cli": "^2.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^4.2.0",
     "eslint": "^9.0.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
     "prettier": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

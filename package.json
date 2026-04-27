@@ -4,8 +4,8 @@
   "description": "Voice-to-text for Linux",
   "type": "module",
   "scripts": {
-    "dev": "cargo tauri dev",
-    "build": "cargo tauri build",
+    "dev": "npx tauri dev",
+    "build": "npx tauri build",
     "preview": "vite preview",
     "format": "prettier --write src",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext ts,tsx",

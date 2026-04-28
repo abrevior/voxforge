@@ -70,7 +70,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Install system dependencies
 # Ubuntu/Debian
-sudo apt-get install libgtk-3-dev libssl-dev libayatana-appindicator3-dev xdotool
+sudo apt-get install libgtk-3-dev libssl-dev libayatana-appindicator3-dev libsoup-3.0-dev libwebkit2gtk-4.1-dev xdotool
 
 # Fedora
 sudo dnf install gtk3-devel openssl-devel xdotool

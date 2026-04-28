@@ -5,9 +5,20 @@ import { Recording } from "./components/Recording";
 import { Settings } from "./components/Settings";
 import { History } from "./components/History";
 import { RecordingState } from "./types/api";
-import "./App.css";
 
 type Page = "recording" | "settings" | "history";
+
+const stateLabels: Record<RecordingState, string> = {
+  idle: "READY",
+  recording: "RECORDING",
+  processing: "PROCESSING",
+};
+
+const stateBadgeClass: Record<RecordingState, string> = {
+  idle: "badge",
+  recording: "badge badge-recording",
+  processing: "badge badge-processing",
+};
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("recording");
@@ -18,30 +29,24 @@ export default function App() {
   useEffect(() => {
     const appWindow = getCurrentWindow();
 
-    // Listen for hotkey events
     const unlistenStart = appWindow.listen("hotkey:start", () => {
       handleStartRecording();
     });
-
     const unlistenStop = appWindow.listen("hotkey:stop", () => {
       handleStopRecording();
     });
-
     const unlistenHistory = appWindow.listen("hotkey:history", () => {
       setCurrentPage("history");
       appWindow.show();
       appWindow.setFocus();
     });
-
     const unlistenShowHistory = appWindow.listen("show-history", () => {
       setCurrentPage("history");
     });
-
     const unlistenShowSettings = appWindow.listen("show-settings", () => {
       setCurrentPage("settings");
     });
 
-    // Cleanup
     return () => {
       unlistenStart.then((f) => f());
       unlistenStop.then((f) => f());
@@ -51,10 +56,8 @@ export default function App() {
     };
   }, []);
 
-  // Poll RMS level while recording
   useEffect(() => {
     if (recordingState !== "recording") return;
-
     const interval = setInterval(async () => {
       try {
         const level = await invoke<number>("get_rms_level");
@@ -62,8 +65,7 @@ export default function App() {
       } catch (err) {
         console.error("Failed to get RMS level:", err);
       }
-    }, 33); // ~30 Hz
-
+    }, 33);
     return () => clearInterval(interval);
   }, [recordingState]);
 
@@ -97,11 +99,8 @@ export default function App() {
 
       await invoke("inject_or_copy", { text });
 
-      const duration = audio.length / 16000; // 16kHz sample rate
-      await invoke("save_to_history", {
-        text,
-        duration,
-      });
+      const duration = audio.length / 16000;
+      await invoke("save_to_history", { text, duration });
 
       setRecordingState("idle");
     } catch (err) {
@@ -111,53 +110,56 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-full bg-white">
-      {/* Header with tabs */}
-      <div className="flex border-b border-gray-200">
+    <div className="app">
+      <div className="tabs">
         <button
+          className={`tab ${currentPage === "recording" ? "tab-active" : ""}`}
           onClick={() => setCurrentPage("recording")}
-          className={`flex-1 px-4 py-3 font-medium text-center border-b-2 transition-colors ${
-            currentPage === "recording"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-600 hover:text-gray-900"
-          }`}
         >
+          <span className="tab-icon">●</span>
           Record
         </button>
         <button
+          className={`tab ${currentPage === "history" ? "tab-active" : ""}`}
           onClick={() => setCurrentPage("history")}
-          className={`flex-1 px-4 py-3 font-medium text-center border-b-2 transition-colors ${
-            currentPage === "history"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-600 hover:text-gray-900"
-          }`}
         >
+          <span className="tab-icon">≡</span>
           History
         </button>
         <button
+          className={`tab ${currentPage === "settings" ? "tab-active" : ""}`}
           onClick={() => setCurrentPage("settings")}
-          className={`flex-1 px-4 py-3 font-medium text-center border-b-2 transition-colors ${
-            currentPage === "settings"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-600 hover:text-gray-900"
-          }`}
         >
+          <span className="tab-icon">⚙</span>
           Settings
         </button>
       </div>
 
-      {/* Content */}
-      <div className="overflow-auto" style={{ height: "calc(100% - 53px)" }}>
+      <div className="page">
         {currentPage === "recording" && (
-          <Recording
-            state={recordingState}
-            rmsLevel={rmsLevel}
-          />
+          <Recording state={recordingState} rmsLevel={rmsLevel} />
         )}
         {currentPage === "history" && <History />}
         {currentPage === "settings" && (
           <Settings onClose={() => setCurrentPage("recording")} />
         )}
+      </div>
+
+      <div className="statusbar">
+        <div className="statusbar-left">
+          <span className={stateBadgeClass[recordingState]}>
+            {stateLabels[recordingState]}
+          </span>
+          <span>VoxForge</span>
+        </div>
+        <div className="statusbar-right">
+          <span className="kbd">Ctrl</span>
+          <span className="kbd-sep">+</span>
+          <span className="kbd">Shift</span>
+          <span className="kbd-sep">+</span>
+          <span className="kbd">Space</span>
+          <span style={{ marginLeft: 4 }}>to record</span>
+        </div>
       </div>
     </div>
   );

@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "identifier": "app.voxforge",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "vite",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "VoxForge",
         "width": 900,
         "height": 700,
@@ -17,7 +18,8 @@
         "minHeight": 300,
         "resizable": true,
         "fullscreen": false,
-        "visible": false
+        "visible": true,
+        "center": true
       }
     ],
     "security": {
@@ -27,7 +29,17 @@
   "bundle": {
     "active": true,
     "targets": [
-      "deb"
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ],
+    "resources": [
+      "icons/tray-icon.png"
     ],
     "linux": {
       "deb": {

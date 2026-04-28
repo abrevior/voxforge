@@ -12,8 +12,7 @@ export const History: React.FC = () => {
 
   const loadHistory = async () => {
     try {
-      const history = await invoke<HistoryEntry[]>("get_history");
-      setEntries(history);
+      setEntries(await invoke<HistoryEntry[]>("get_history"));
     } catch (err) {
       console.error("Failed to load history:", err);
     } finally {
@@ -24,9 +23,9 @@ export const History: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await invoke("delete_history_entry", { id });
-      setEntries(entries.filter((e) => e.id !== id));
+      setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
-      alert(`Failed to delete entry: ${err}`);
+      console.error("Failed to delete entry:", err);
     }
   };
 
@@ -36,7 +35,7 @@ export const History: React.FC = () => {
       await invoke("clear_history");
       setEntries([]);
     } catch (err) {
-      alert(`Failed to clear history: ${err}`);
+      console.error("Failed to clear history:", err);
     }
   };
 
@@ -45,59 +44,63 @@ export const History: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="p-8">Loading history...</div>;
+    return <div className="loading">Loading history…</div>;
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">History</h2>
-        {entries.length > 0 && (
-          <button
-            onClick={handleClear}
-            className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Clear All
-          </button>
-        )}
+    <div className="page-wide">
+      <div className="page-header">
+        <h1>History</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="page-subtitle">{entries.length} entries</span>
+          {entries.length > 0 && (
+            <button className="btn btn-danger" onClick={handleClear}>
+              Clear all
+            </button>
+          )}
+        </div>
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">No transcriptions yet</p>
+        <div className="empty">
+          <span className="empty-icon">∅</span>
+          <span>No transcriptions yet</span>
+          <span style={{ fontSize: 11, color: "var(--fgSubtle)" }}>
+            Hold the record hotkey to capture your first one.
+          </span>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <ul className="history-list">
           {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="p-4 bg-gray-50 rounded-lg border border-gray-200"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1">
-                  <p className="text-gray-800 break-words">{entry.text}</p>
+            <li key={entry.id} className="history-item">
+              <div className="history-text">{entry.text}</div>
+              <div className="history-meta">
+                <div className="history-meta-left">
+                  <span style={{ color: "var(--accentFg)" }}>
+                    {entry.language.toUpperCase()}
+                  </span>
+                  <span>{entry.duration.toFixed(1)}s</span>
+                  <span>{new Date(entry.timestamp).toLocaleString()}</span>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="history-actions">
                   <button
+                    className="btn btn-ghost"
                     onClick={() => handleCopy(entry.text)}
-                    className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
                     Copy
                   </button>
                   <button
+                    className="btn btn-ghost"
                     onClick={() => handleDelete(entry.id)}
-                    className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                    style={{ color: "var(--danger)" }}
                   >
                     Delete
                   </button>
                 </div>
               </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>{entry.language.toUpperCase()}</span>
-                <span>{entry.duration.toFixed(1)}s</span>
-                <span>{new Date(entry.timestamp).toLocaleString()}</span>
-              </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

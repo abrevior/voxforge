@@ -46,45 +46,26 @@ fn inject_ydotool(text: &str) -> Result<()> {
 }
 
 pub fn copy_to_clipboard(text: &str) -> Result<()> {
-    // Try xclip first (most common)
-    let output = Command::new("which")
-        .arg("xclip")
-        .output();
+    use arboard::SetExtLinux;
 
-    if output.is_ok() && output.unwrap().status.success() {
-        let mut child = Command::new("xclip")
-            .arg("-selection")
-            .arg("clipboard")
-            .stdin(std::process::Stdio::piped())
-            .spawn()?;
+    // Init synchronously so we can surface "no display" or similar errors.
+    // (Drops immediately — only used as a connectivity probe.)
+    arboard::Clipboard::new()
+        .map_err(|e| anyhow::anyhow!("clipboard init failed: {e}"))?;
 
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            stdin.write_all(text.as_bytes())?;
+    // Run set+wait in a background thread. wait() makes the calling thread
+    // serve the clipboard until something else takes ownership, which is
+    // how X11 (and XWayland) clipboards persist beyond the source process.
+    // Without it, drop'ing Clipboard would clear the content immediately.
+    let payload = text.to_string();
+    std::thread::spawn(move || match arboard::Clipboard::new() {
+        Ok(mut cb) => {
+            if let Err(e) = cb.set().wait().text(payload) {
+                log::warn!("clipboard write failed: {e}");
+            }
         }
-        child.wait()?;
-        return Ok(());
-    }
+        Err(e) => log::warn!("clipboard init failed in worker: {e}"),
+    });
 
-    // Fallback to xsel
-    let output = Command::new("which")
-        .arg("xsel")
-        .output();
-
-    if output.is_ok() && output.unwrap().status.success() {
-        let mut child = Command::new("xsel")
-            .arg("-b")
-            .arg("-i")
-            .stdin(std::process::Stdio::piped())
-            .spawn()?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            stdin.write_all(text.as_bytes())?;
-        }
-        child.wait()?;
-        return Ok(());
-    }
-
-    Err(anyhow::anyhow!("No clipboard tool found. Install xclip or xsel."))
+    Ok(())
 }

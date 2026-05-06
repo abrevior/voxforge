@@ -4,6 +4,7 @@ version = "0.2.0"
 description = "Voice-to-text for Linux"
 authors = ["VoxForge Contributors"]
 edition = "2021"
+default-run = "voxforge"
 
 [lib]
 name = "voxforge"
@@ -12,6 +13,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "voxforge"
 path = "src/main.rs"
+
+[[bin]]
+name = "voxforge-ctl"
+path = "src/bin/voxforge_ctl.rs"
 
 [dependencies]
 tauri = { version = "2.0", features = [
@@ -27,6 +32,11 @@ tokio = { version = "1.35", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio-util = "0.7"
+futures-util = "0.3"
+arboard = "3"
+
+# XDG desktop portal — modern global hotkeys on Wayland (Activated / Deactivated)
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "global_shortcuts"] }
 
 # Audio
 cpal = "0.17"
@@ -50,6 +60,10 @@ parking_lot = "0.12"
 
 # Database
 rusqlite = { version = "0.30", features = ["bundled", "chrono", "uuid"] }
+
+# Linux-only: native GTK overlay window (avoids WebKit2GTK widget min-size clamp).
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

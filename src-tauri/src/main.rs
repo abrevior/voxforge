@@ -18,6 +18,12 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
+fn hide_main_window(app: &tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.hide();
+    }
+}
+
 fn main() {
     env_logger::init();
 
@@ -39,6 +45,7 @@ fn main() {
                     if shortcut == &start_shortcut {
                         match event.state() {
                             ShortcutState::Pressed => {
+                                hide_main_window(app);
                                 let _ = app.emit("hotkey:start", ());
                             }
                             ShortcutState::Released => {
@@ -67,15 +74,44 @@ fn main() {
             voxforge::commands::save_config,
             voxforge::commands::get_recording_state,
             voxforge::commands::get_rms_level,
+            voxforge::commands::toggle_recording,
+            voxforge::commands::set_overlay_visible,
         ])
         .setup(move |app| {
-            // Register global hotkeys
-            if let Err(e) = app.global_shortcut().register(start_shortcut) {
-                log::warn!("failed to register start hotkey: {e}");
-            }
-            if let Err(e) = app.global_shortcut().register(history_shortcut) {
-                log::warn!("failed to register history hotkey: {e}");
-            }
+            // Always run the local IPC listener — the GNOME Custom Shortcut
+            // path drives this regardless of session type.
+            let ipc_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = voxforge::ipc::start_listener(ipc_handle).await {
+                    log::warn!("ipc listener stopped: {e}");
+                }
+            });
+
+            // Best-effort: also try the XDG GlobalShortcuts portal (works on
+            // GNOME 47+/KDE Plasma 6+) and the X11 grab fallback (works on
+            // pure X11 sessions). Both no-op silently on systems that don't
+            // support them (current Ubuntu 24.04 GNOME 46 / Wayland).
+            let shortcuts_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match voxforge::portal_shortcuts::run(shortcuts_handle.clone()).await {
+                    Ok(()) => log::info!("portal shortcut loop exited cleanly"),
+                    Err(e) => {
+                        log::warn!(
+                            "portal global shortcuts unavailable ({e}); trying X11 grab"
+                        );
+                        if let Err(err) =
+                            shortcuts_handle.global_shortcut().register(start_shortcut)
+                        {
+                            log::debug!("X11 fallback start register failed: {err}");
+                        }
+                        if let Err(err) =
+                            shortcuts_handle.global_shortcut().register(history_shortcut)
+                        {
+                            log::debug!("X11 fallback history register failed: {err}");
+                        }
+                    }
+                }
+            });
 
             // Tray menu
             let show_i = MenuItem::with_id(app, "show", "Показати", true, None::<&str>)?;
@@ -119,6 +155,8 @@ fn main() {
                     }
                 })
                 .build(app)?;
+
+            voxforge::overlay::create(app)?;
 
             // Show window on startup so the user has visible feedback.
             // Open Settings tab so the API key can be entered before first use.

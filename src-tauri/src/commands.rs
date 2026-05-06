@@ -3,20 +3,22 @@ use crate::history::HistoryEntry;
 use crate::inject::{copy_to_clipboard, inject_text};
 use crate::state::{AppState, RecordingState};
 use crate::transcribe::TranscribeClient;
-use tauri::State;
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[tauri::command]
-pub fn start_recording(state: State<'_, AppState>) -> Result<(), String> {
+pub fn start_recording(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
     state.set_state(RecordingState::Recording);
     let mut recorder = state.recorder.lock();
     recorder.start().map_err(|e| e.to_string())?;
+    let _ = crate::overlay::set_overlay_visible(&app, true);
     Ok(())
 }
 
 #[tauri::command]
-pub fn stop_recording(state: State<'_, AppState>) -> Result<Vec<u8>, String> {
+pub fn stop_recording(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<u8>, String> {
     let mut recorder = state.recorder.lock();
     recorder.stop().map_err(|e| e.to_string())?;
+    let _ = crate::overlay::set_overlay_visible(&app, false);
     recorder.get_wav_bytes().map_err(|e| e.to_string())
 }
 
@@ -127,4 +129,28 @@ pub fn get_recording_state(state: State<'_, AppState>) -> Result<String, String>
 pub fn get_rms_level(state: State<'_, AppState>) -> Result<f32, String> {
     let recorder = state.recorder.lock();
     Ok(recorder.get_rms_level())
+}
+
+/// Broadcast a hotkey-style event according to current state. Used by the
+/// overlay window's orb click and any other "single button → toggle" path.
+#[tauri::command]
+pub fn toggle_recording(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    match state.get_state() {
+        RecordingState::Idle => {
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.hide();
+            }
+            let _ = app.emit("hotkey:start", ());
+        }
+        RecordingState::Recording => {
+            let _ = app.emit("hotkey:stop", ());
+        }
+        RecordingState::Processing => {}
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_overlay_visible(visible: bool, app: AppHandle) -> Result<(), String> {
+    crate::overlay::set_overlay_visible(&app, visible)
 }

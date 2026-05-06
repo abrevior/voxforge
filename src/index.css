@@ -232,8 +232,8 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  padding: 48px 24px;
+  gap: 14px;
+  padding: 22px 24px;
   text-align: center;
 }
 
@@ -254,7 +254,34 @@ button {
   box-shadow:
     0 0 0 1px var(--borderSubtle),
     0 12px 32px rgba(0, 0, 0, 0.45);
-  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  font: inherit;
+  color: inherit;
+}
+
+.rec-orb:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 14px 36px rgba(0, 0, 0, 0.55),
+    0 0 24px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.rec-orb:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.rec-orb:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.rec-orb:disabled {
+  cursor: progress;
 }
 
 .rec-orb-recording {
@@ -314,35 +341,79 @@ button {
   gap: 6px;
 }
 
-.rec-meter {
+/* Real-time scrolling waveform */
+.rec-wave {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
   width: 100%;
-  max-width: 320px;
-}
-
-.rec-meter-track {
-  height: 6px;
-  background: var(--bgElevated);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.rec-meter-fill {
-  height: 100%;
+  max-width: 360px;
+  height: 48px;
+  padding: 0 4px;
   background: linear-gradient(
-    to right,
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 8%, transparent) 50%,
+    transparent 100%
+  );
+  border-radius: 8px;
+}
+
+.rec-wave-bar {
+  flex: 1 1 auto;
+  min-width: 4px;
+  max-width: 8px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to top,
     var(--success),
-    var(--accent),
+    var(--accent) 60%,
+    var(--accentFg)
+  );
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: height 60ms ease-out;
+}
+
+.rec-wave-meta {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 360px;
+  margin-top: -4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--fgMuted);
+  letter-spacing: 0.5px;
+}
+
+.rec-wave-time {
+  color: var(--accentFg);
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-wave-rms {
+  color: var(--fgSubtle);
+}
+
+/* Processing: indeterminate breathing bars */
+.rec-wave-processing .rec-wave-bar {
+  height: 30%;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--warning) 40%, transparent),
     var(--warning)
   );
-  transition: width 80ms linear;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--warning) 35%, transparent);
 }
 
-.rec-meter-label {
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--fgSubtle);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+.rec-wave-bar-pulse {
+  animation: wave-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes wave-pulse {
+  0%, 100% { height: 18%; }
+  50%      { height: 80%; }
 }
 
 /* Settings form */
@@ -557,3 +628,4 @@ button {
   color: var(--fgMuted);
   font-size: 12px;
 }
+

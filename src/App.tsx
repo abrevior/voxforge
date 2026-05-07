@@ -150,6 +150,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <WindowChrome />
       <Tabs active={tab} onChange={setTab} />
       <div className="app-page">
         {tab === "record" && <RecordTab micStyle={micStyle} />}
@@ -166,6 +167,68 @@ export default function App() {
           {statusMsg.text}
         </div>
       )}
+    </div>
+  );
+}
+
+function WindowChrome() {
+  const w = getCurrentWindow();
+  return (
+    <div className="window-chrome" data-tauri-drag-region>
+      <div className="window-title" data-tauri-drag-region>
+        VoxForge
+      </div>
+      <div className="window-buttons">
+        <button
+          className="winbtn"
+          aria-label="Minimize"
+          onClick={() => w.minimize()}
+          type="button"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <path
+              d="M2 5h6"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+        <button
+          className="winbtn"
+          aria-label="Maximize"
+          onClick={() => w.toggleMaximize()}
+          type="button"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <rect
+              x="2"
+              y="2"
+              width="6"
+              height="6"
+              rx="1.2"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              fill="none"
+            />
+          </svg>
+        </button>
+        <button
+          className="winbtn winbtn-close"
+          aria-label="Close"
+          onClick={() => w.close()}
+          type="button"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <path
+              d="M2.5 2.5l5 5M7.5 2.5l-5 5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

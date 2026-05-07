@@ -69,16 +69,83 @@ button { cursor: pointer; }
 
 .app {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   height: 100vh;
   background: var(--bg);
   position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--windowBorder);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+[data-theme="light"] .app {
+  box-shadow: 0 24px 60px rgba(15, 20, 25, 0.18);
 }
 .app-page {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.window-chrome {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 16px;
+  background: var(--headerBg);
+  border-bottom: 1px solid var(--divider);
+  position: relative;
+  flex-shrink: 0;
+}
+.window-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fgMuted);
+  pointer-events: none;
+}
+.window-buttons {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  z-index: 1;
+}
+.winbtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fgMuted);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+.winbtn:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.1);
+}
+.winbtn-close:hover {
+  background: var(--rec);
+  color: white;
+}
+[data-theme="light"] .winbtn {
+  background: rgba(15, 20, 25, 0.06);
+  color: #5a6678;
+}
+[data-theme="light"] .winbtn:hover {
+  background: rgba(15, 20, 25, 0.1);
+  color: var(--fg);
+}
+[data-theme="light"] .winbtn-close:hover {
+  background: var(--rec);
+  color: white;
 }
 
 .toast {

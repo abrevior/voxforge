@@ -8,6 +8,12 @@ export interface Config {
   ui_language: string;
   openai_api_base: string;
   output_mode: string;
+  theme: "system" | "dark" | "light";
+  mic_style: "classic" | "minimal" | "wave";
+  show_statusbar: boolean;
+  show_overlay: boolean;
+  auto_paste: boolean;
+  punctuation: boolean;
 }
 
 export interface HistoryEntry {

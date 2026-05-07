@@ -15,6 +15,29 @@ pub struct Config {
     pub ui_language: String,
     pub openai_api_base: String,
     pub output_mode: String,
+
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(default = "default_mic_style")]
+    pub mic_style: String,
+    #[serde(default = "default_true")]
+    pub show_statusbar: bool,
+    #[serde(default = "default_true")]
+    pub show_overlay: bool,
+    #[serde(default = "default_true")]
+    pub auto_paste: bool,
+    #[serde(default = "default_true")]
+    pub punctuation: bool,
+}
+
+fn default_theme() -> String {
+    "system".into()
+}
+fn default_mic_style() -> String {
+    "classic".into()
+}
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Config {
@@ -29,6 +52,12 @@ impl Default for Config {
             ui_language: "uk".to_string(),
             openai_api_base: "https://api.openai.com/v1".to_string(),
             output_mode: "inject".to_string(),
+            theme: default_theme(),
+            mic_style: default_mic_style(),
+            show_statusbar: true,
+            show_overlay: true,
+            auto_paste: true,
+            punctuation: true,
         }
     }
 }

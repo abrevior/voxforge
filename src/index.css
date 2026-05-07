@@ -657,3 +657,89 @@ button { cursor: pointer; }
     inset 0 -1px 0 rgba(15, 20, 25, 0.06),
     0 1px 0 rgba(255, 255, 255, 0.8);
 }
+
+/* ===== Redesign — tabs strip ===== */
+
+.tabstrip {
+  display: flex;
+  padding: 8px 14px 0;
+  gap: 4px;
+  border-bottom: 1px solid var(--divider);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.tabstrip-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fgMuted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 160ms ease, border-color 160ms ease;
+  font-family: inherit;
+}
+.tabstrip-ic { display: flex; opacity: 0.7; }
+.tabstrip-tab-active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+.tabstrip-tab-active .tabstrip-ic {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* ===== Redesign — status bar ===== */
+
+.statusbar2 {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 10px;
+  border-top: 1px solid var(--divider);
+  background: var(--statusBg);
+  font-size: 11px;
+  color: var(--fgMuted);
+  flex-shrink: 0;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.status-pill-recording {
+  background: color-mix(in srgb, var(--rec) 18%, transparent);
+  color: var(--rec);
+}
+.status-pill-processing {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-name { color: var(--fgMuted); }
+.status-hint {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kbd-sep2 { color: var(--fgFaint); font-size: 11px; }
+.status-hint-text { margin-left: 6px; color: var(--fgMuted); }

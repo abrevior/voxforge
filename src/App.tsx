@@ -1,259 +1,171 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { Recording } from "./components/Recording";
-import { Settings } from "./components/Settings";
-import { History } from "./components/History";
-import { RecordingState } from "./types/api";
-
-type Page = "recording" | "settings" | "history";
-
-const stateLabels: Record<RecordingState, string> = {
-  idle: "READY",
-  recording: "RECORDING",
-  processing: "PROCESSING",
-};
-
-const stateBadgeClass: Record<RecordingState, string> = {
-  idle: "badge",
-  recording: "badge badge-recording",
-  processing: "badge badge-processing",
-};
+import { Tabs, TabId } from "./components/Tabs";
+import { StatusBar } from "./components/StatusBar";
+import { RecordTab } from "./components/tabs/RecordTab";
+import { HistoryTab } from "./components/tabs/HistoryTab";
+import { SettingsTab } from "./components/tabs/SettingsTab";
+import { applyTheme, detectSystemTheme, ThemeName } from "./theme";
+import { Config, RecordingState } from "./types/api";
+import { MicStyle } from "./components/MicIcon";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("recording");
+  const [tab, setTab] = useState<TabId>("record");
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
-  const [rmsLevel, setRmsLevel] = useState(0);
-  const [isRecording, setIsRecording] = useState(false);
-  const [statusMsg, setStatusMsg] = useState<{ kind: "info" | "error"; text: string } | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{
+    kind: "info" | "error";
+    text: string;
+  } | null>(null);
+
+  // Theme: follows config (system/dark/light); reactive to OS changes when "system".
+  const [themePref, setThemePref] = useState<"system" | ThemeName>("system");
+  const [resolvedTheme, setResolvedTheme] = useState<ThemeName>(
+    detectSystemTheme(),
+  );
+  useEffect(() => applyTheme(resolvedTheme), [resolvedTheme]);
+  useEffect(() => {
+    if (themePref === "system") {
+      setResolvedTheme(detectSystemTheme());
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const onChange = () => setResolvedTheme(detectSystemTheme());
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    }
+    setResolvedTheme(themePref);
+  }, [themePref]);
+
+  // Config-derived UI prefs.
+  const [micStyle, setMicStyle] = useState<MicStyle>("classic");
+  const [showStatusbar, setShowStatusbar] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await invoke<Config>("get_config");
+        setMicStyle(cfg.mic_style);
+        setShowStatusbar(cfg.show_statusbar);
+        setThemePref(cfg.theme);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const onConfigChange = (cfg: Config) => {
+    setMicStyle(cfg.mic_style);
+    setShowStatusbar(cfg.show_statusbar);
+    setThemePref(cfg.theme);
+  };
+
+  // Recording flow.
   const isRecordingRef = useRef(false);
-
   useEffect(() => {
-    isRecordingRef.current = isRecording;
-  }, [isRecording]);
+    const w = getCurrentWindow();
+    const u1 = w.listen("hotkey:start", () => {
+      setTab("record");
+      w.hide();
+      handleStart();
+    });
+    const u2 = w.listen("hotkey:stop", () => handleStop());
+    const u3 = w.listen("hotkey:history", () => {
+      setTab("history");
+      w.show();
+      w.setFocus();
+    });
+    const u4 = w.listen("show-history", () => setTab("history"));
+    const u5 = w.listen("show-settings", () => setTab("settings"));
+    return () => {
+      u1.then((f) => f());
+      u2.then((f) => f());
+      u3.then((f) => f());
+      u4.then((f) => f());
+      u5.then((f) => f());
+    };
+  }, []);
 
-  useEffect(() => {
-    if (!statusMsg) return;
-    const id = setTimeout(() => setStatusMsg(null), 6000);
-    return () => clearTimeout(id);
-  }, [statusMsg]);
-
-  // Drive the floating overlay window (native GTK on Linux): visible only
-  // while recording or during the brief processing tail.
   useEffect(() => {
     (async () => {
       try {
         await invoke("set_overlay_visible", {
           visible: recordingState !== "idle",
         });
-      } catch (err) {
-        console.warn("overlay show/hide failed:", err);
+      } catch {
+        /* ignore */
       }
     })();
   }, [recordingState]);
 
   useEffect(() => {
-    const appWindow = getCurrentWindow();
+    if (!statusMsg) return;
+    const t = setTimeout(() => setStatusMsg(null), 6000);
+    return () => clearTimeout(t);
+  }, [statusMsg]);
 
-    const unlistenStart = appWindow.listen("hotkey:start", () => {
-      setCurrentPage("recording");
-      appWindow.hide();
-      handleStartRecording();
-    });
-    const unlistenStop = appWindow.listen("hotkey:stop", () => {
-      handleStopRecording();
-    });
-    const unlistenHistory = appWindow.listen("hotkey:history", () => {
-      setCurrentPage("history");
-      appWindow.show();
-      appWindow.setFocus();
-    });
-    const unlistenShowHistory = appWindow.listen("show-history", () => {
-      setCurrentPage("history");
-    });
-    const unlistenShowSettings = appWindow.listen("show-settings", () => {
-      setCurrentPage("settings");
-    });
-
-    return () => {
-      unlistenStart.then((f) => f());
-      unlistenStop.then((f) => f());
-      unlistenHistory.then((f) => f());
-      unlistenShowHistory.then((f) => f());
-      unlistenShowSettings.then((f) => f());
-    };
-  }, []);
-
-  useEffect(() => {
-    if (recordingState !== "recording") return;
-    const interval = setInterval(async () => {
-      try {
-        const level = await invoke<number>("get_rms_level");
-        setRmsLevel(level);
-      } catch (err) {
-        console.error("Failed to get RMS level:", err);
-      }
-    }, 33);
-    return () => clearInterval(interval);
-  }, [recordingState]);
-
-  // While recording, plain Space (or Esc) anywhere in the window stops it.
-  useEffect(() => {
-    if (recordingState !== "recording") return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.key === " " || e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        handleStopRecording();
-      }
-    };
-    window.addEventListener("keydown", onKey, { capture: true });
-    return () => window.removeEventListener("keydown", onKey, { capture: true } as any);
-  }, [recordingState]);
-
-  const handleStartRecording = async () => {
-    if (isRecordingRef.current) return; // already recording
+  const handleStart = async () => {
+    if (isRecordingRef.current) return;
     isRecordingRef.current = true;
+    setRecordingState("recording");
     try {
-      setRecordingState("recording");
-      setIsRecording(true);
-      setStatusMsg(null);
       await invoke("start_recording");
-    } catch (err) {
-      console.error("Failed to start recording:", err);
+    } catch (e) {
       setRecordingState("idle");
-      setIsRecording(false);
       isRecordingRef.current = false;
-      setStatusMsg({ kind: "error", text: `Mic error: ${err}` });
+      setStatusMsg({ kind: "error", text: `Mic error: ${e}` });
     }
   };
 
-  const handleStopRecording = async () => {
+  const handleStop = async () => {
     if (!isRecordingRef.current) return;
     isRecordingRef.current = false;
-    setIsRecording(false);
-
     try {
       setRecordingState("processing");
-      const audioBytes = await invoke<number[]>("stop_recording");
-      const audio = new Uint8Array(audioBytes);
-
+      const audio = await invoke<number[]>("stop_recording");
       const text = await invoke<string>("transcribe", {
-        audioBytes: Array.from(audio),
+        audioBytes: Array.from(new Uint8Array(audio)),
       });
-
-      if (!text || !text.trim()) {
-        setStatusMsg({ kind: "info", text: "Empty transcription" });
-      } else {
+      if (text && text.trim()) {
         try {
           await invoke("inject_or_copy", { text });
-        } catch (err) {
-          setStatusMsg({ kind: "error", text: `Inject failed: ${err}` });
+        } catch (e) {
+          setStatusMsg({ kind: "error", text: `Inject failed: ${e}` });
         }
-        const duration = audio.length / 16000;
-        await invoke("save_to_history", { text, duration });
+        const dur = audio.length / 16000;
+        await invoke("save_to_history", { text, duration: dur });
         setStatusMsg({
           kind: "info",
-          text: `Transcribed: "${text.length > 60 ? text.slice(0, 57) + "…" : text}"`,
+          text: `Transcribed: "${
+            text.length > 60 ? text.slice(0, 57) + "…" : text
+          }"`,
         });
+      } else {
+        setStatusMsg({ kind: "info", text: "Empty transcription" });
       }
-
       setRecordingState("idle");
-    } catch (err) {
-      console.error("Failed to transcribe:", err);
+    } catch (e) {
       setRecordingState("idle");
-      const msg = String(err);
-      const friendly =
-        msg.includes("api_key") || msg.includes("API key") || msg.toLowerCase().includes("unauthorized")
-          ? "Transcription failed — check OpenAI API key in Settings."
-          : `Transcription failed: ${err}`;
-      setStatusMsg({ kind: "error", text: friendly });
+      setStatusMsg({ kind: "error", text: `Transcription failed: ${e}` });
     }
   };
 
   return (
     <div className="app">
-      <div className="tabs">
-        <button
-          className={`tab ${currentPage === "recording" ? "tab-active" : ""}`}
-          onClick={() => setCurrentPage("recording")}
-        >
-          <span className="tab-icon">●</span>
-          Record
-        </button>
-        <button
-          className={`tab ${currentPage === "history" ? "tab-active" : ""}`}
-          onClick={() => setCurrentPage("history")}
-        >
-          <span className="tab-icon">≡</span>
-          History
-        </button>
-        <button
-          className={`tab ${currentPage === "settings" ? "tab-active" : ""}`}
-          onClick={() => setCurrentPage("settings")}
-        >
-          <span className="tab-icon">⚙</span>
-          Settings
-        </button>
+      <Tabs active={tab} onChange={setTab} />
+      <div className="app-page">
+        {tab === "record" && <RecordTab micStyle={micStyle} />}
+        {tab === "history" && <HistoryTab />}
+        {tab === "settings" && <SettingsTab onConfigChange={onConfigChange} />}
       </div>
-
-      <div className="page">
-        {currentPage === "recording" && (
-          <Recording
-            state={recordingState}
-            rmsLevel={rmsLevel}
-            onToggle={() => {
-              if (recordingState === "recording") handleStopRecording();
-              else if (recordingState === "idle") handleStartRecording();
-            }}
-          />
-        )}
-        {currentPage === "history" && <History />}
-        {currentPage === "settings" && (
-          <Settings onClose={() => setCurrentPage("recording")} />
-        )}
-      </div>
-
-      <div className="statusbar">
-        <div className="statusbar-left">
-          <span className={stateBadgeClass[recordingState]}>
-            {stateLabels[recordingState]}
-          </span>
-          <span>VoxForge</span>
-          {statusMsg && (
-            <span
-              style={{
-                color: statusMsg.kind === "error" ? "var(--danger)" : "var(--accentFg)",
-                marginLeft: 8,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: 480,
-              }}
-              title={statusMsg.text}
-            >
-              {statusMsg.text}
-            </span>
-          )}
+      <StatusBar state={recordingState} visible={showStatusbar} />
+      {statusMsg && (
+        <div
+          className={`toast toast-${statusMsg.kind}`}
+          title={statusMsg.text}
+          onClick={() => setStatusMsg(null)}
+        >
+          {statusMsg.text}
         </div>
-        <div className="statusbar-right">
-          {recordingState === "recording" ? (
-            <>
-              <span className="kbd">Space</span>
-              <span style={{ marginLeft: 4 }}>to stop</span>
-            </>
-          ) : (
-            <>
-              <span className="kbd">Ctrl</span>
-              <span className="kbd-sep">+</span>
-              <span className="kbd">Shift</span>
-              <span className="kbd-sep">+</span>
-              <span className="kbd">Space</span>
-              <span style={{ marginLeft: 4 }}>to record</span>
-            </>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

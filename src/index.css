@@ -1007,3 +1007,106 @@ button { cursor: pointer; }
   text-align: center;
   color: var(--fgFaint);
 }
+
+/* ===== Redesign — Settings tab ===== */
+
+.settings-tab {
+  flex: 1;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: auto;
+}
+.settings-section { display: flex; flex-direction: column; gap: 10px; }
+.settings-section-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fgFaint);
+}
+.settings-card {
+  background: var(--cardBg);
+  border: 1px solid var(--cardBorder);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.settings-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--divider);
+}
+.settings-row-last { border-bottom: none; }
+.settings-row-label { font-size: 13px; color: var(--fg); font-weight: 500; }
+.settings-row-hint { font-size: 11.5px; color: var(--fgFaint); margin-top: 2px; }
+.settings-row-control { display: flex; align-items: center; }
+
+.settings-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 160px;
+}
+.settings-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 5px 28px 5px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--cardBorder);
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--fg);
+}
+[data-theme="light"] .settings-select select {
+  background: rgba(15, 20, 25, 0.04);
+}
+.settings-select-chevron {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: var(--fgMuted);
+  display: flex;
+}
+
+.settings-toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  position: relative;
+  border: none;
+  padding: 0;
+  transition: background 160ms ease;
+}
+[data-theme="light"] .settings-toggle { background: rgba(15, 20, 25, 0.12); }
+.settings-toggle-on { background: var(--accent); }
+.settings-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: left 160ms ease;
+}
+.settings-toggle-on .settings-toggle-thumb { left: 18px; }
+
+.settings-keyrow { display: flex; gap: 4px; }
+
+.settings-input {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--cardBorder);
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--fg);
+  width: 240px;
+}
+[data-theme="light"] .settings-input { background: rgba(15, 20, 25, 0.04); }

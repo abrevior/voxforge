@@ -3,7 +3,18 @@ use crate::history::HistoryEntry;
 use crate::inject::{copy_to_clipboard, inject_text};
 use crate::state::{AppState, RecordingState};
 use crate::transcribe::TranscribeClient;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+
+fn set_tray_recording<R: Runtime>(app: &tauri::AppHandle<R>, recording: bool) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let icon = if recording {
+            tauri::include_image!("icons/tray-icon-recording.png")
+        } else {
+            tauri::include_image!("icons/tray-icon.png")
+        };
+        let _ = tray.set_icon(Some(icon));
+    }
+}
 
 #[tauri::command]
 pub fn start_recording(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
@@ -11,6 +22,7 @@ pub fn start_recording(state: State<'_, AppState>, app: AppHandle) -> Result<(),
     let mut recorder = state.recorder.lock();
     recorder.start().map_err(|e| e.to_string())?;
     let _ = crate::overlay::set_overlay_visible(&app, true);
+    set_tray_recording(&app, true);
     Ok(())
 }
 
@@ -19,6 +31,7 @@ pub fn stop_recording(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<
     let mut recorder = state.recorder.lock();
     recorder.stop().map_err(|e| e.to_string())?;
     let _ = crate::overlay::set_overlay_visible(&app, false);
+    set_tray_recording(&app, false);
     recorder.get_wav_bytes().map_err(|e| e.to_string())
 }
 

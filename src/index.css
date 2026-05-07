@@ -241,20 +241,17 @@ button {
   position: relative;
   width: 140px;
   height: 140px;
-  border-radius: 50%;
+  border-radius: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(
-    circle at 30% 30%,
-    color-mix(in srgb, var(--accent) 30%, var(--bgElevated)),
-    var(--bgElevated) 70%
-  );
+  overflow: hidden;
+  background: var(--bgElevated);
   border: 1px solid var(--border);
   box-shadow:
     0 0 0 1px var(--borderSubtle),
     0 12px 32px rgba(0, 0, 0, 0.45);
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
   padding: 0;
   cursor: pointer;
   outline: none;
@@ -285,33 +282,41 @@ button {
 }
 
 .rec-orb-recording {
-  background: radial-gradient(
-    circle at 30% 30%,
-    color-mix(in srgb, var(--danger) 55%, var(--bgElevated)),
-    var(--bgElevated) 70%
-  );
   border-color: var(--danger);
   box-shadow:
-    0 0 0 1px var(--danger),
-    0 0 32px color-mix(in srgb, var(--danger) 50%, transparent);
+    0 0 0 2px var(--danger),
+    0 0 32px color-mix(in srgb, var(--danger) 60%, transparent),
+    0 12px 32px rgba(0, 0, 0, 0.45);
   animation: orb-pulse 1.4s ease-in-out infinite;
 }
 
 .rec-orb-processing {
-  background: radial-gradient(
-    circle at 30% 30%,
-    color-mix(in srgb, var(--warning) 55%, var(--bgElevated)),
-    var(--bgElevated) 70%
-  );
   border-color: var(--warning);
   box-shadow:
-    0 0 0 1px var(--warning),
-    0 0 28px color-mix(in srgb, var(--warning) 45%, transparent);
+    0 0 0 2px var(--warning),
+    0 0 28px color-mix(in srgb, var(--warning) 50%, transparent),
+    0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
-.rec-orb-icon {
-  font-size: 48px;
-  color: var(--fgStrong);
+.rec-orb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.rec-orb-spinner {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid transparent;
+  border-top-color: var(--warning);
+  animation: orb-spin 0.9s linear infinite;
+}
+
+@keyframes orb-spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes orb-pulse {

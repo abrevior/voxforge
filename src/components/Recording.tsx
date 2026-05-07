@@ -18,7 +18,6 @@ const emptyHistory = () => new Array(BARS).fill(0) as number[];
 
 export const Recording: React.FC<RecordingProps> = ({ state, rmsLevel, onToggle }) => {
   const orbClass = `rec-orb rec-orb-${state}`;
-  const orbIcon = state === "processing" ? "⏳" : "🎙";
   const orbLabel =
     state === "recording"
       ? "Stop recording"
@@ -70,7 +69,10 @@ export const Recording: React.FC<RecordingProps> = ({ state, rmsLevel, onToggle 
           aria-label={orbLabel}
           title={orbLabel}
         >
-          <span className="rec-orb-icon">{orbIcon}</span>
+          <img src="/icon.png" alt="" className="rec-orb-img" draggable={false} />
+          {state === "processing" && (
+            <span className="rec-orb-spinner" aria-hidden="true" />
+          )}
         </button>
 
         <div className="rec-state">{stateText[state]}</div>

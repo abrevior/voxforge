@@ -15,8 +15,8 @@
 
 use tauri::{Manager, Runtime};
 
-pub const W: i32 = 220;
-pub const H: i32 = 32;
+pub const W: i32 = 280;
+pub const H: i32 = 36;
 const BARS: usize = 28;
 const BOTTOM_MARGIN: i32 = 80;
 const RMS_TICK_MS: u64 = 33;
@@ -43,6 +43,19 @@ mod imp {
 
     thread_local! {
         static OVERLAY: RefCell<Option<Overlay>> = const { RefCell::new(None) };
+    }
+
+    const TRAY_ICON_PNG: &[u8] = include_bytes!("../icons/tray-icon-32.png");
+
+    fn brand_image() -> Option<gtk::Image> {
+        use gtk::gdk_pixbuf::prelude::PixbufLoaderExt;
+        use gtk::gdk_pixbuf::{Pixbuf, PixbufLoader};
+        let loader = PixbufLoader::new();
+        loader.write(TRAY_ICON_PNG).ok()?;
+        loader.close().ok()?;
+        let pixbuf: Pixbuf = loader.pixbuf()?;
+        let scaled = pixbuf.scale_simple(24, 24, gtk::gdk_pixbuf::InterpType::Bilinear)?;
+        Some(gtk::Image::from_pixbuf(Some(&scaled)))
     }
 
     pub fn create<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
@@ -73,35 +86,67 @@ mod imp {
             }
         }
 
-        let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        hbox.set_margin_start(8);
-        hbox.set_margin_end(8);
-        hbox.set_margin_top(4);
-        hbox.set_margin_bottom(4);
+        let stack = gtk::Overlay::new();
 
-        let orb = gtk::Button::with_label("🎙");
+        // Base layer: paints opaque pill background + accent border across
+        // the full window.
+        let bg = gtk::DrawingArea::new();
+        bg.connect_draw(|widget, cr| {
+            paint_pill_bg(widget, cr);
+            glib::Propagation::Proceed
+        });
+        stack.add(&bg);
+
+        // Foreground: orb button + brand label + waveform laid out
+        // horizontally; everything vertically centered in the pill.
+        let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        hbox.set_margin_start(10);
+        hbox.set_margin_end(10);
+        hbox.set_valign(gtk::Align::Center);
+        hbox.set_halign(gtk::Align::Fill);
+
+        let orb = gtk::Button::new();
         orb.set_relief(gtk::ReliefStyle::None);
-        orb.set_size_request(20, 20);
+        orb.set_size_request(26, 26);
+        orb.set_valign(gtk::Align::Center);
+        if let Some(img) = brand_image() {
+            orb.set_image(Some(&img));
+            orb.set_always_show_image(true);
+            orb.set_label("");
+        } else {
+            orb.set_label("🎙");
+        }
         let toggle_app = app.clone();
         orb.connect_clicked(move |_| {
             request_toggle(&toggle_app);
         });
         hbox.pack_start(&orb, false, false, 0);
 
+        let brand = gtk::Label::new(None);
+        brand.set_markup(
+            "<span foreground='#61afef' font_weight='bold' font_family='monospace' \
+             letter_spacing='1024'>VF</span>",
+        );
+        brand.set_valign(gtk::Align::Center);
+        hbox.pack_start(&brand, false, false, 0);
+
         let history: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(vec![0.0; BARS]));
         let drawing = gtk::DrawingArea::new();
         drawing.set_hexpand(true);
-        drawing.set_vexpand(true);
+        drawing.set_vexpand(false);
+        drawing.set_size_request(-1, 18);
+        drawing.set_valign(gtk::Align::Center);
         let history_for_draw = history.clone();
         drawing.connect_draw(move |widget, cr| {
-            paint_waveform(widget, cr, &history_for_draw);
+            paint_waveform_bars(widget, cr, &history_for_draw);
             glib::Propagation::Proceed
         });
         hbox.pack_start(&drawing, true, true, 0);
 
-        window.add(&hbox);
-        // Pre-realize the children so the first show_all() doesn't flicker.
-        hbox.show_all();
+        stack.add_overlay(&hbox);
+
+        window.add(&stack);
+        stack.show_all();
 
         OVERLAY.with(|cell| {
             *cell.borrow_mut() = Some(Overlay {
@@ -216,7 +261,27 @@ mod imp {
         }
     }
 
-    fn paint_waveform(
+    fn paint_pill_bg(widget: &gtk::DrawingArea, cr: &Context) {
+        let alloc = widget.allocation();
+        let w = alloc.width() as f64;
+        let h = alloc.height() as f64;
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+
+        // Solid pill — Atom One Dark `--bgElevated` #21252b.
+        cr.set_source_rgba(0.129, 0.145, 0.169, 1.0);
+        rounded_rect(cr, 0.0, 0.0, w, h, 7.0);
+        let _ = cr.fill();
+
+        // Accent (brand blue) hairline.
+        cr.set_source_rgba(0.38, 0.69, 0.94, 0.85);
+        cr.set_line_width(1.0);
+        rounded_rect(cr, 0.5, 0.5, w - 1.0, h - 1.0, 7.0);
+        let _ = cr.stroke();
+    }
+
+    fn paint_waveform_bars(
         widget: &gtk::DrawingArea,
         cr: &Context,
         history: &Arc<Mutex<Vec<f32>>>,
@@ -227,12 +292,6 @@ mod imp {
         if w <= 0.0 || h <= 0.0 {
             return;
         }
-
-        // Translucent dark pill background.
-        cr.set_source_rgba(0.13, 0.16, 0.20, 0.92);
-        rounded_rect(cr, 0.0, 0.0, w, h, 6.0);
-        let _ = cr.fill();
-
         let snap: Vec<f32> = history.lock().clone();
         let n = snap.len() as f64;
         if n < 1.0 {

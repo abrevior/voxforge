@@ -102,13 +102,26 @@ async fn handle(app: AppHandle, stream: UnixStream) {
                 let _ = win.set_focus();
             }
         }
-        "overlay-show" => {
-            if let Err(e) = crate::overlay::set_overlay_visible(&app, true) {
+        "overlay-show" | "overlay-recording" => {
+            if let Err(e) = crate::overlay::set_state(&app, crate::overlay::OverlayState::Recording) {
                 log::warn!("ipc overlay-show failed: {e}");
             }
         }
+        "overlay-transcribing" => {
+            if let Err(e) = crate::overlay::set_state(&app, crate::overlay::OverlayState::Transcribing) {
+                log::warn!("ipc overlay-transcribing failed: {e}");
+            }
+        }
+        "overlay-done" => {
+            if let Err(e) = crate::overlay::set_state(
+                &app,
+                crate::overlay::OverlayState::Done("Transcribed: hello world".to_string()),
+            ) {
+                log::warn!("ipc overlay-done failed: {e}");
+            }
+        }
         "overlay-hide" => {
-            if let Err(e) = crate::overlay::set_overlay_visible(&app, false) {
+            if let Err(e) = crate::overlay::set_state(&app, crate::overlay::OverlayState::Hidden) {
                 log::warn!("ipc overlay-hide failed: {e}");
             }
         }

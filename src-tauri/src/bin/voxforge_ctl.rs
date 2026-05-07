@@ -28,14 +28,16 @@ fn main() {
 
     match cmd {
         "toggle" | "start" | "stop" | "history" | "show" | "overlay-show"
-        | "overlay-hide" => {}
+        | "overlay-hide" | "overlay-recording" | "overlay-transcribing"
+        | "overlay-done" => {}
         "-h" | "--help" => {
-            println!("voxforge-ctl <toggle|start|stop|history|show|overlay-show|overlay-hide>");
+            println!(
+                "voxforge-ctl <toggle|start|stop|history|show|overlay-recording|overlay-transcribing|overlay-done|overlay-hide>"
+            );
             return;
         }
         other => {
             eprintln!("voxforge-ctl: unknown command: {other:?}");
-            eprintln!("voxforge-ctl <toggle|start|stop|history|show|overlay-show|overlay-hide>");
             std::process::exit(2);
         }
     }

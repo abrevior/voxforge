@@ -1,17 +1,6 @@
-//! Native GTK recording overlay.
-//!
-//! Plain `gtk::Window` (not a Tauri WebviewWindow), because the WebKit2GTK
-//! widget enforces an internal min size of ~132x170 px on this stack, and no
-//! amount of `set_size`, `min_inner_size`, geometry hints or widget
-//! `set_size_request(0,0)` overrides it. With native GTK the size is whatever
-//! we ask for.
-//!
-//! Lifecycle:
-//!   - `create()` runs once in `setup()`, on the GTK main thread, and stashes
-//!     the window in a thread-local.
-//!   - `set_overlay_visible()` may be called from any thread; it dispatches
-//!     onto the GTK main thread via `AppHandle::run_on_main_thread` so it
-//!     can reach the thread-local.
+//! Native GTK recording overlay with three states (Recording, Transcribing,
+//! Done). Plain `gtk::Window` + cairo, because the WebKit2GTK widget enforces
+//! an internal min size of ~132x170 px on this stack.
 
 use tauri::{Manager, Runtime};
 
@@ -20,12 +9,22 @@ pub const H: i32 = 36;
 const BARS: usize = 28;
 const BOTTOM_MARGIN: i32 = 80;
 const RMS_TICK_MS: u64 = 33;
+const DONE_AUTOHIDE_MS: u64 = 2200;
+
+#[derive(Clone, Debug)]
+pub enum OverlayState {
+    Hidden,
+    Recording,
+    Transcribing,
+    Done(String),
+}
 
 #[cfg(target_os = "linux")]
 mod imp {
     use super::*;
     use std::cell::RefCell;
     use std::sync::Arc;
+    use std::time::Instant;
 
     use gtk::cairo::Context;
     use gtk::gdk::WindowTypeHint;
@@ -37,25 +36,19 @@ mod imp {
 
     struct Overlay {
         window: gtk::Window,
+        stack: gtk::Stack,
         history: Arc<Mutex<Vec<f32>>>,
         timer: RefCell<Option<glib::SourceId>>,
+        auto_hide: RefCell<Option<glib::SourceId>>,
+        elapsed_start: RefCell<Option<Instant>>,
+        rec_dur_label: gtk::Label,
+        trans_dur_label: gtk::Label,
+        done_label: gtk::Label,
+        spinner: gtk::Spinner,
     }
 
     thread_local! {
         static OVERLAY: RefCell<Option<Overlay>> = const { RefCell::new(None) };
-    }
-
-    const TRAY_ICON_PNG: &[u8] = include_bytes!("../icons/tray-icon-32.png");
-
-    fn brand_image() -> Option<gtk::Image> {
-        use gtk::gdk_pixbuf::prelude::PixbufLoaderExt;
-        use gtk::gdk_pixbuf::{Pixbuf, PixbufLoader};
-        let loader = PixbufLoader::new();
-        loader.write(TRAY_ICON_PNG).ok()?;
-        loader.close().ok()?;
-        let pixbuf: Pixbuf = loader.pixbuf()?;
-        let scaled = pixbuf.scale_simple(24, 24, gtk::gdk_pixbuf::InterpType::Bilinear)?;
-        Some(gtk::Image::from_pixbuf(Some(&scaled)))
     }
 
     pub fn create<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
@@ -86,106 +79,130 @@ mod imp {
             }
         }
 
-        let stack = gtk::Overlay::new();
+        // Click-anywhere toggle while recording — the app's main click target.
+        let evt = gtk::EventBox::new();
+        evt.set_above_child(false);
+        evt.set_visible_window(false);
+        let toggle_app = app.clone();
+        evt.connect_button_press_event(move |_, _| {
+            request_toggle(&toggle_app);
+            glib::Propagation::Stop
+        });
 
-        // Base layer: paints opaque pill background + accent border across
-        // the full window.
+        let stack_overlay = gtk::Overlay::new();
+
+        // Base layer — pill background + accent border.
         let bg = gtk::DrawingArea::new();
         bg.connect_draw(|widget, cr| {
             paint_pill_bg(widget, cr);
             glib::Propagation::Proceed
         });
-        stack.add(&bg);
+        stack_overlay.add(&bg);
 
-        // Foreground: orb button + brand label + waveform laid out
-        // horizontally; everything vertically centered in the pill.
-        let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        hbox.set_margin_start(10);
-        hbox.set_margin_end(10);
-        hbox.set_valign(gtk::Align::Center);
-        hbox.set_halign(gtk::Align::Fill);
-
-        let orb = gtk::Button::new();
-        orb.set_relief(gtk::ReliefStyle::None);
-        orb.set_size_request(26, 26);
-        orb.set_valign(gtk::Align::Center);
-        if let Some(img) = brand_image() {
-            orb.set_image(Some(&img));
-            orb.set_always_show_image(true);
-            orb.set_label("");
-        } else {
-            orb.set_label("🎙");
-        }
-        let toggle_app = app.clone();
-        orb.connect_clicked(move |_| {
-            request_toggle(&toggle_app);
-        });
-        hbox.pack_start(&orb, false, false, 0);
-
-        let brand = gtk::Label::new(None);
-        brand.set_markup(
-            "<span foreground='#61afef' font_weight='bold' font_family='monospace' \
-             letter_spacing='1024'>VF</span>",
-        );
-        brand.set_valign(gtk::Align::Center);
-        hbox.pack_start(&brand, false, false, 0);
+        // Foreground — gtk::Stack with three named children, one per state.
+        let stack = gtk::Stack::new();
+        stack.set_transition_type(gtk::StackTransitionType::Crossfade);
+        stack.set_transition_duration(160);
+        stack.set_valign(gtk::Align::Center);
+        stack.set_halign(gtk::Align::Fill);
 
         let history: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(vec![0.0; BARS]));
-        let drawing = gtk::DrawingArea::new();
-        drawing.set_hexpand(true);
-        drawing.set_vexpand(false);
-        drawing.set_size_request(-1, 18);
-        drawing.set_valign(gtk::Align::Center);
-        let history_for_draw = history.clone();
-        drawing.connect_draw(move |widget, cr| {
-            paint_waveform_bars(widget, cr, &history_for_draw);
-            glib::Propagation::Proceed
-        });
-        hbox.pack_start(&drawing, true, true, 0);
 
-        stack.add_overlay(&hbox);
+        let (rec_row, rec_dur_label) = build_recording_row(history.clone());
+        stack.add_named(&rec_row, "recording");
 
-        window.add(&stack);
-        stack.show_all();
+        let (trans_row, trans_dur_label, spinner) = build_transcribing_row();
+        stack.add_named(&trans_row, "transcribing");
+
+        let (done_row, done_label) = build_done_row();
+        stack.add_named(&done_row, "done");
+
+        stack_overlay.add_overlay(&stack);
+
+        evt.add(&stack_overlay);
+        window.add(&evt);
+
+        // Realize children so first show_all() doesn't flicker.
+        evt.show_all();
 
         OVERLAY.with(|cell| {
             *cell.borrow_mut() = Some(Overlay {
                 window,
+                stack,
                 history,
                 timer: RefCell::new(None),
+                auto_hide: RefCell::new(None),
+                elapsed_start: RefCell::new(None),
+                rec_dur_label,
+                trans_dur_label,
+                done_label,
+                spinner,
             });
         });
 
         Ok(())
     }
 
-    pub fn set_visible<R: Runtime>(app: &tauri::AppHandle<R>, visible: bool) -> Result<(), String> {
+    pub fn set_state<R: Runtime>(
+        app: &tauri::AppHandle<R>,
+        state: OverlayState,
+    ) -> Result<(), String> {
         let app_for_main = app.clone();
+        let state_for_main = state.clone();
         app.run_on_main_thread(move || {
             OVERLAY.with(|cell| {
-                let Some(ov) = cell.borrow().as_ref().map(|o| (o.window.clone(), o.history.clone())) else {
-                    log::warn!("overlay: set_visible called before create()");
+                let cell_ref = cell.borrow();
+                let Some(ov) = cell_ref.as_ref() else {
+                    log::warn!("overlay: set_state called before create()");
                     return;
                 };
-                let (window, history) = ov;
-                if visible {
-                    window.show_all();
-                    let alloc = window.allocation();
-                    log::info!(
-                        "overlay: shown, allocated={}x{}",
-                        alloc.width(),
-                        alloc.height(),
-                    );
-                    start_polling(&app_for_main, history);
-                } else {
-                    window.hide();
-                    log::info!("overlay: hidden");
-                    stop_polling();
-                    // Reset history so next show starts clean.
-                    let cur = OVERLAY.with(|c| c.borrow().as_ref().map(|o| o.history.clone()));
-                    if let Some(h) = cur {
-                        let mut g = h.lock();
-                        for v in g.iter_mut() { *v = 0.0; }
+
+                // Cancel any pending auto-hide whenever state changes.
+                if let Some(id) = ov.auto_hide.borrow_mut().take() {
+                    id.remove();
+                }
+
+                log::info!("overlay: state={:?}", state_for_main);
+                match &state_for_main {
+                    OverlayState::Hidden => {
+                        ov.window.hide();
+                        stop_polling_inner(ov);
+                        ov.spinner.stop();
+                        *ov.elapsed_start.borrow_mut() = None;
+                        clear_history(ov);
+                    }
+                    OverlayState::Recording => {
+                        *ov.elapsed_start.borrow_mut() = Some(Instant::now());
+                        ov.stack.set_visible_child_name("recording");
+                        ov.spinner.stop();
+                        ov.window.show_all();
+                        start_polling_inner(&app_for_main, ov);
+                    }
+                    OverlayState::Transcribing => {
+                        ov.stack.set_visible_child_name("transcribing");
+                        ov.spinner.start();
+                        // Update transcribing-row duration to whatever recording
+                        // duration ended at; keep elapsed_start so the label
+                        // ticks over while we wait, if we ever wire that.
+                        update_duration_labels(ov);
+                        stop_polling_inner(ov);
+                        ov.window.show_all();
+                    }
+                    OverlayState::Done(text) => {
+                        ov.done_label.set_text(text);
+                        ov.stack.set_visible_child_name("done");
+                        ov.spinner.stop();
+                        stop_polling_inner(ov);
+                        ov.window.show_all();
+
+                        let app_after = app_for_main.clone();
+                        let id = glib::timeout_add_local_once(
+                            std::time::Duration::from_millis(DONE_AUTOHIDE_MS),
+                            move || {
+                                let _ = set_state(&app_after, OverlayState::Hidden);
+                            },
+                        );
+                        *ov.auto_hide.borrow_mut() = Some(id);
                     }
                 }
             });
@@ -193,16 +210,131 @@ mod imp {
         .map_err(|e| e.to_string())
     }
 
-    fn start_polling<R: Runtime>(app: &tauri::AppHandle<R>, history: Arc<Mutex<Vec<f32>>>) {
-        OVERLAY.with(|cell| {
-            if let Some(ov) = cell.borrow().as_ref() {
-                if let Some(id) = ov.timer.borrow_mut().take() {
-                    id.remove();
-                }
-            }
-        });
+    fn build_recording_row(history: Arc<Mutex<Vec<f32>>>) -> (gtk::Box, gtk::Label) {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        row.set_margin_start(16);
+        row.set_margin_end(16);
+        row.set_valign(gtk::Align::Center);
 
+        // Pulsing rec dot.
+        let dot = gtk::DrawingArea::new();
+        dot.set_size_request(10, 10);
+        dot.set_valign(gtk::Align::Center);
+        dot.connect_draw(|w, cr| {
+            let sz = w.allocated_width().min(w.allocated_height()) as f64;
+            let r = sz / 2.0;
+            cr.set_source_rgb(247.0 / 255.0, 118.0 / 255.0, 142.0 / 255.0);
+            cr.arc(r, r, r * 0.85, 0.0, std::f64::consts::TAU);
+            let _ = cr.fill();
+            glib::Propagation::Proceed
+        });
+        row.pack_start(&dot, false, false, 0);
+
+        // Waveform.
+        let wave = gtk::DrawingArea::new();
+        wave.set_hexpand(true);
+        wave.set_size_request(-1, 22);
+        wave.set_valign(gtk::Align::Center);
+        wave.connect_draw(move |w, cr| {
+            paint_waveform_bars(w, cr, &history);
+            glib::Propagation::Proceed
+        });
+        row.pack_start(&wave, true, true, 0);
+
+        // Duration.
+        let dur = gtk::Label::new(None);
+        dur.set_markup(
+            "<span font_family='monospace' size='11000' foreground='#9aa6b8'>0:00</span>",
+        );
+        dur.set_valign(gtk::Align::Center);
+        row.pack_start(&dur, false, false, 0);
+
+        (row, dur)
+    }
+
+    fn build_transcribing_row() -> (gtk::Box, gtk::Label, gtk::Spinner) {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        row.set_margin_start(16);
+        row.set_margin_end(16);
+        row.set_valign(gtk::Align::Center);
+
+        let sp = gtk::Spinner::new();
+        sp.set_size_request(14, 14);
+        sp.set_valign(gtk::Align::Center);
+        row.pack_start(&sp, false, false, 0);
+
+        let lbl = gtk::Label::new(None);
+        lbl.set_markup(
+            "<span size='11500' foreground='#9aa6b8' weight='500'>Transcribing</span>",
+        );
+        lbl.set_valign(gtk::Align::Center);
+        row.pack_start(&lbl, false, false, 0);
+
+        let dots = gtk::Label::new(None);
+        dots.set_markup("<span foreground='#9aa6b8'>…</span>");
+        dots.set_valign(gtk::Align::Center);
+        row.pack_start(&dots, false, false, 0);
+
+        let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        spacer.set_hexpand(true);
+        row.pack_start(&spacer, true, true, 0);
+
+        let dur = gtk::Label::new(None);
+        dur.set_markup(
+            "<span font_family='monospace' size='11000' foreground='#9aa6b8'>0:00</span>",
+        );
+        dur.set_valign(gtk::Align::Center);
+        row.pack_start(&dur, false, false, 0);
+
+        (row, dur, sp)
+    }
+
+    fn build_done_row() -> (gtk::Box, gtk::Label) {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        row.set_margin_start(16);
+        row.set_margin_end(16);
+        row.set_valign(gtk::Align::Center);
+
+        let check = gtk::DrawingArea::new();
+        check.set_size_request(18, 18);
+        check.set_valign(gtk::Align::Center);
+        check.connect_draw(|w, cr| {
+            let sz = w.allocated_width() as f64;
+            let r = sz / 2.0;
+            // Tinted background circle.
+            cr.set_source_rgba(125.0 / 255.0, 211.0 / 255.0, 160.0 / 255.0, 0.18);
+            cr.arc(r, r, r, 0.0, std::f64::consts::TAU);
+            let _ = cr.fill();
+            // Check mark.
+            cr.set_source_rgb(125.0 / 255.0, 211.0 / 255.0, 160.0 / 255.0);
+            cr.set_line_width(1.6);
+            cr.set_line_cap(gtk::cairo::LineCap::Round);
+            cr.set_line_join(gtk::cairo::LineJoin::Round);
+            cr.move_to(sz * 0.30, sz * 0.55);
+            cr.line_to(sz * 0.45, sz * 0.70);
+            cr.line_to(sz * 0.72, sz * 0.35);
+            let _ = cr.stroke();
+            glib::Propagation::Proceed
+        });
+        row.pack_start(&check, false, false, 0);
+
+        let lbl = gtk::Label::new(Some(""));
+        lbl.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        lbl.set_max_width_chars(40);
+        lbl.set_xalign(0.0);
+        lbl.set_hexpand(true);
+        lbl.set_valign(gtk::Align::Center);
+        row.pack_start(&lbl, true, true, 0);
+
+        (row, lbl)
+    }
+
+    fn start_polling_inner<R: Runtime>(app: &tauri::AppHandle<R>, ov: &Overlay) {
+        if let Some(id) = ov.timer.borrow_mut().take() {
+            id.remove();
+        }
         let app_for_tick = app.clone();
+        let history = ov.history.clone();
         let id = glib::timeout_add_local(
             std::time::Duration::from_millis(RMS_TICK_MS),
             move || {
@@ -216,27 +348,42 @@ mod imp {
                 OVERLAY.with(|cell| {
                     if let Some(ov) = cell.borrow().as_ref() {
                         ov.window.queue_draw();
+                        update_duration_labels(ov);
                     }
                 });
                 glib::ControlFlow::Continue
             },
         );
-
-        OVERLAY.with(|cell| {
-            if let Some(ov) = cell.borrow().as_ref() {
-                *ov.timer.borrow_mut() = Some(id);
-            }
-        });
+        *ov.timer.borrow_mut() = Some(id);
     }
 
-    fn stop_polling() {
-        OVERLAY.with(|cell| {
-            if let Some(ov) = cell.borrow().as_ref() {
-                if let Some(id) = ov.timer.borrow_mut().take() {
-                    id.remove();
-                }
-            }
-        });
+    fn stop_polling_inner(ov: &Overlay) {
+        if let Some(id) = ov.timer.borrow_mut().take() {
+            id.remove();
+        }
+    }
+
+    fn clear_history(ov: &Overlay) {
+        let mut h = ov.history.lock();
+        for v in h.iter_mut() {
+            *v = 0.0;
+        }
+    }
+
+    fn update_duration_labels(ov: &Overlay) {
+        let elapsed_secs = ov
+            .elapsed_start
+            .borrow()
+            .map(|t| t.elapsed().as_secs())
+            .unwrap_or(0);
+        let m = elapsed_secs / 60;
+        let s = elapsed_secs % 60;
+        let txt = format!(
+            "<span font_family='monospace' size='11000' foreground='#9aa6b8'>{}:{:02}</span>",
+            m, s
+        );
+        ov.rec_dur_label.set_markup(&txt);
+        ov.trans_dur_label.set_markup(&txt);
     }
 
     fn read_rms<R: Runtime>(app: &tauri::AppHandle<R>) -> f32 {
@@ -268,16 +415,16 @@ mod imp {
         if w <= 0.0 || h <= 0.0 {
             return;
         }
-
-        // Solid pill — Atom One Dark `--bgElevated` #21252b.
-        cr.set_source_rgba(0.129, 0.145, 0.169, 1.0);
-        rounded_rect(cr, 0.0, 0.0, w, h, 7.0);
+        // Solid pill — `--overlayBg` 0.92 alpha, painted over the transparent
+        // window so the pill floats with no surrounding rectangle.
+        cr.set_source_rgba(20.0 / 255.0, 25.0 / 255.0, 33.0 / 255.0, 0.96);
+        rounded_rect(cr, 0.0, 0.0, w, h, h / 2.0);
         let _ = cr.fill();
 
-        // Accent (brand blue) hairline.
-        cr.set_source_rgba(0.38, 0.69, 0.94, 0.85);
+        // Hairline border, soft.
+        cr.set_source_rgba(255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0, 0.08);
         cr.set_line_width(1.0);
-        rounded_rect(cr, 0.5, 0.5, w - 1.0, h - 1.0, 7.0);
+        rounded_rect(cr, 0.5, 0.5, w - 1.0, h - 1.0, (h - 1.0) / 2.0);
         let _ = cr.stroke();
     }
 
@@ -299,12 +446,12 @@ mod imp {
         }
         let bar_w = (w / n).max(1.0) - 1.0;
         for (i, v) in snap.iter().enumerate() {
-            let pct = ((*v as f64) * 2.2).clamp(0.04, 1.0);
-            let bar_h = pct * h * 0.85;
+            let pct = ((*v as f64) * 2.2).clamp(0.06, 1.0);
+            let bar_h = pct * h * 0.9;
             let x = i as f64 * (bar_w + 1.0);
             let y = (h - bar_h) / 2.0;
-            let fade = 0.25 + 0.75 * (i as f64 / (n - 1.0));
-            cr.set_source_rgba(0.38, 0.69, 0.94, fade);
+            let fade = 0.4 + 0.6 * (i as f64 / (n - 1.0));
+            cr.set_source_rgba(0.48, 0.64, 0.97, fade); // --accent #7aa2f7
             cr.rectangle(x, y, bar_w, bar_h);
             let _ = cr.fill();
         }
@@ -315,8 +462,20 @@ mod imp {
         cr.new_sub_path();
         cr.arc(x + w - r, y + r, r, -std::f64::consts::FRAC_PI_2, 0.0);
         cr.arc(x + w - r, y + h - r, r, 0.0, std::f64::consts::FRAC_PI_2);
-        cr.arc(x + r, y + h - r, r, std::f64::consts::FRAC_PI_2, std::f64::consts::PI);
-        cr.arc(x + r, y + r, r, std::f64::consts::PI, 1.5 * std::f64::consts::PI);
+        cr.arc(
+            x + r,
+            y + h - r,
+            r,
+            std::f64::consts::FRAC_PI_2,
+            std::f64::consts::PI,
+        );
+        cr.arc(
+            x + r,
+            y + r,
+            r,
+            std::f64::consts::PI,
+            1.5 * std::f64::consts::PI,
+        );
         cr.close_path();
     }
 }
@@ -328,15 +487,35 @@ pub fn create<R: Runtime, M: Manager<R>>(manager: &M) -> tauri::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
+pub fn set_state<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    state: OverlayState,
+) -> Result<(), String> {
+    imp::set_state(app, state)
+}
+
+#[cfg(target_os = "linux")]
 pub fn set_overlay_visible<R: Runtime>(
     app: &tauri::AppHandle<R>,
     visible: bool,
 ) -> Result<(), String> {
-    imp::set_visible(app, visible)
+    if visible {
+        imp::set_state(app, OverlayState::Recording)
+    } else {
+        imp::set_state(app, OverlayState::Hidden)
+    }
 }
 
 #[cfg(not(target_os = "linux"))]
 pub fn create<R: Runtime, M: Manager<R>>(_manager: &M) -> tauri::Result<()> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn set_state<R: Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _state: OverlayState,
+) -> Result<(), String> {
     Ok(())
 }
 

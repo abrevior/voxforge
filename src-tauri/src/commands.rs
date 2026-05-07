@@ -21,7 +21,7 @@ pub fn start_recording(state: State<'_, AppState>, app: AppHandle) -> Result<(),
     state.set_state(RecordingState::Recording);
     let mut recorder = state.recorder.lock();
     recorder.start().map_err(|e| e.to_string())?;
-    let _ = crate::overlay::set_overlay_visible(&app, true);
+    let _ = crate::overlay::set_state(&app, crate::overlay::OverlayState::Recording);
     set_tray_recording(&app, true);
     Ok(())
 }
@@ -30,7 +30,7 @@ pub fn start_recording(state: State<'_, AppState>, app: AppHandle) -> Result<(),
 pub fn stop_recording(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<u8>, String> {
     let mut recorder = state.recorder.lock();
     recorder.stop().map_err(|e| e.to_string())?;
-    let _ = crate::overlay::set_overlay_visible(&app, false);
+    let _ = crate::overlay::set_state(&app, crate::overlay::OverlayState::Transcribing);
     set_tray_recording(&app, false);
     recorder.get_wav_bytes().map_err(|e| e.to_string())
 }
@@ -39,6 +39,7 @@ pub fn stop_recording(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<
 pub fn transcribe(
     audio_bytes: Vec<u8>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
     state.set_state(RecordingState::Processing);
 
@@ -52,13 +53,34 @@ pub fn transcribe(
 
     drop(config);
 
-    let text = tauri::async_runtime::block_on(async {
+    let result = tauri::async_runtime::block_on(async {
         client.transcribe(audio_bytes, &language).await
-    })
-    .map_err(|e| e.to_string())?;
+    });
 
     state.set_state(RecordingState::Idle);
-    Ok(text)
+
+    match result {
+        Ok(text) => {
+            let preview = if text.trim().is_empty() {
+                "Empty transcription".to_string()
+            } else if text.chars().count() > 60 {
+                let cut: String = text.chars().take(58).collect();
+                format!("{}…", cut)
+            } else {
+                text.clone()
+            };
+            let _ = crate::overlay::set_state(&app, crate::overlay::OverlayState::Done(preview));
+            Ok(text)
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            let _ = crate::overlay::set_state(
+                &app,
+                crate::overlay::OverlayState::Done(format!("Failed: {}", msg)),
+            );
+            Err(msg)
+        }
+    }
 }
 
 #[tauri::command]

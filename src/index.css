@@ -2,31 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Atom One Dark palette + design system shared with the terminal app. */
 :root {
-  --bg: #282c34;
-  --bgElevated: #21252b;
-  --bgHover: #2c313c;
-  --bgActive: #3a3f4b;
-  --bgInput: #1e222a;
-  --border: #3e4451;
-  --borderSubtle: #2c313c;
-  --fg: #abb2bf;
-  --fgStrong: #e6e6e6;
-  --fgMuted: #5c6370;
-  --fgSubtle: #4b5263;
-  --accent: #61afef;
-  --accentStrong: #528bff;
-  --accentFg: #79c0ff;
-  --danger: #e06c75;
-  --warning: #e5c07b;
-  --success: #98c379;
-  --purple: #c678dd;
+  /* Default to dark; theme.ts overrides immediately on mount. */
+  --bg: #0f1419;
+  --headerBg: #161b22;
+  --statusBg: #0c1015;
+  --fg: #e4ecf5;
+  --fgMuted: #9aa6b8;
+  --fgFaint: #5f6b7c;
+  --divider: rgba(255, 255, 255, 0.06);
+  --windowBorder: rgba(255, 255, 255, 0.08);
+  --cardBg: rgba(255, 255, 255, 0.03);
+  --cardBorder: rgba(255, 255, 255, 0.06);
+  --accent: #7aa2f7;
+  --overlayBg: rgba(20, 25, 33, 0.92);
+  --overlayBorder: rgba(255, 255, 255, 0.08);
+  --rec: #f7768e;
+  --done: #7dd3a0;
+  --font-sans: system-ui, -apple-system, "Cantarell", "Segoe UI",
+    "SF Pro Text", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html,
 body,
@@ -37,8 +35,7 @@ body,
   width: 100%;
   background: var(--bg);
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu,
-    sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
@@ -53,23 +50,19 @@ button {
   font-size: inherit;
 }
 
-button {
-  cursor: pointer;
-}
+button { cursor: pointer; }
 
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--cardBorder);
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--bgActive);
+  background: var(--divider);
 }
 
 /* App shell */

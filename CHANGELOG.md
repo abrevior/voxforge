@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-05-08
+
+### Fixed
+- CI build failure caused by Tauri version drift between Rust crate and npm package — `tauri` Rust crate auto-bumped to `2.11.x` while `@tauri-apps/api` was still on `2.10.x`, breaking the `npm run build` step
+
+### Changed
+- `Cargo.lock` is now committed (it was ignored), pinning Rust dependency versions for reproducible CI builds
+- Tightened SemVer for `tauri`/`tauri-build` in `Cargo.toml` (`~2.10` / `~2.5`) to prevent future minor-version drift; minor bumps now require an explicit, paired update with `@tauri-apps/api`
+
+---
+
 ## [0.2.1] - 2026-05-08
 
 ### Fixed

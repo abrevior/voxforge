@@ -1,6 +1,6 @@
 [package]
 name = "voxforge"
-version = "0.2.1"
+version = "0.2.2"
 description = "Voice-to-text for Linux"
 authors = ["VoxForge Contributors"]
 edition = "2021"
@@ -19,7 +19,7 @@ name = "voxforge-ctl"
 path = "src/bin/voxforge_ctl.rs"
 
 [dependencies]
-tauri = { version = "2.0", features = [
+tauri = { version = "~2.10", features = [
   "tray-icon",
   "image-png",
 ] }
@@ -66,6 +66,6 @@ rusqlite = { version = "0.30", features = ["bundled", "chrono", "uuid"] }
 gtk = "0.18"
 
 [build-dependencies]
-tauri-build = { version = "2.0", features = [] }
+tauri-build = { version = "~2.5", features = [] }
 
 [dev-dependencies]

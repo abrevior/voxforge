@@ -1,6 +1,6 @@
 [package]
 name = "voxforge"
-version = "0.2.2"
+version = "0.2.3"
 description = "Voice-to-text for Linux"
 authors = ["VoxForge Contributors"]
 edition = "2021"

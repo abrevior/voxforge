@@ -9,6 +9,7 @@
     "build": "npm run build:frontend && npx tauri build",
     "preview": "vite preview",
     "format": "prettier --write src",
+    "format:check": "prettier --check src",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit"
   },

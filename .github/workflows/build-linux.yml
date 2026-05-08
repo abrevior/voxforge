@@ -58,7 +58,7 @@ jobs:
         continue-on-error: true
 
       - name: Format check (TypeScript)
-        run: npm run format -- --check
+        run: npm run format:check
         continue-on-error: true
 
       - name: Lint (TypeScript)
@@ -71,6 +71,8 @@ jobs:
 
       - name: Build Tauri app
         run: npm run build
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
 
       - name: List build artifacts
         run: |

@@ -264,9 +264,7 @@ mod imp {
         row.pack_start(&sp, false, false, 0);
 
         let lbl = gtk::Label::new(None);
-        lbl.set_markup(
-            "<span size='11500' foreground='#9aa6b8' weight='500'>Transcribing</span>",
-        );
+        lbl.set_markup("<span size='11500' foreground='#9aa6b8' weight='500'>Transcribing</span>");
         lbl.set_valign(gtk::Align::Center);
         row.pack_start(&lbl, false, false, 0);
 
@@ -335,9 +333,8 @@ mod imp {
         }
         let app_for_tick = app.clone();
         let history = ov.history.clone();
-        let id = glib::timeout_add_local(
-            std::time::Duration::from_millis(RMS_TICK_MS),
-            move || {
+        let id =
+            glib::timeout_add_local(std::time::Duration::from_millis(RMS_TICK_MS), move || {
                 let rms = read_rms(&app_for_tick);
                 {
                     let mut h = history.lock();
@@ -352,8 +349,7 @@ mod imp {
                     }
                 });
                 glib::ControlFlow::Continue
-            },
-        );
+            });
         *ov.timer.borrow_mut() = Some(id);
     }
 
@@ -422,7 +418,7 @@ mod imp {
         let _ = cr.fill();
 
         // Hairline border, soft.
-        cr.set_source_rgba(255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0, 0.08);
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.08);
         cr.set_line_width(1.0);
         rounded_rect(cr, 0.5, 0.5, w - 1.0, h - 1.0, (h - 1.0) / 2.0);
         let _ = cr.stroke();
@@ -487,10 +483,7 @@ pub fn create<R: Runtime, M: Manager<R>>(manager: &M) -> tauri::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-pub fn set_state<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    state: OverlayState,
-) -> Result<(), String> {
+pub fn set_state<R: Runtime>(app: &tauri::AppHandle<R>, state: OverlayState) -> Result<(), String> {
     imp::set_state(app, state)
 }
 

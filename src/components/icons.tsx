@@ -30,7 +30,15 @@ export const GearIcon = () => (
 
 export const Copy = () => (
   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-    <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+    <rect
+      x="5"
+      y="5"
+      width="8"
+      height="8"
+      rx="1.5"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    />
     <path d="M3 11V4a1 1 0 011-1h7" stroke="currentColor" strokeWidth="1.4" />
   </svg>
 );
@@ -52,13 +60,23 @@ export const More = () => (
 export const Search = () => (
   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
     <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4" />
-    <path d="M10.5 10.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path
+      d="M10.5 10.5l3 3"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
 export const Chevron = () => (
   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-    <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path
+      d="M2 4l3 3 3-3"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+    />
   </svg>
 );
 

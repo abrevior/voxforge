@@ -27,8 +27,15 @@ fn main() {
     let cmd = args.first().map(String::as_str).unwrap_or("toggle");
 
     match cmd {
-        "toggle" | "start" | "stop" | "history" | "show" | "overlay-show"
-        | "overlay-hide" | "overlay-recording" | "overlay-transcribing"
+        "toggle"
+        | "start"
+        | "stop"
+        | "history"
+        | "show"
+        | "overlay-show"
+        | "overlay-hide"
+        | "overlay-recording"
+        | "overlay-transcribing"
         | "overlay-done" => {}
         "-h" | "--help" => {
             println!(

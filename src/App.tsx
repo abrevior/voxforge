@@ -20,9 +20,8 @@ export default function App() {
 
   // Theme: follows config (system/dark/light); reactive to OS changes when "system".
   const [themePref, setThemePref] = useState<"system" | ThemeName>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<ThemeName>(
-    detectSystemTheme(),
-  );
+  const [resolvedTheme, setResolvedTheme] =
+    useState<ThemeName>(detectSystemTheme());
   useEffect(() => applyTheme(resolvedTheme), [resolvedTheme]);
   useEffect(() => {
     if (themePref === "system") {

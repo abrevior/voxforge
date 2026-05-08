@@ -113,14 +113,16 @@ export function HistoryTab() {
                   >
                     <div className="history-item-meta">
                       <span>{timeAgo(new Date(it.timestamp).getTime())}</span>
-                      <span className="history-item-dur">{fmtDur(it.duration)}</span>
+                      <span className="history-item-dur">
+                        {fmtDur(it.duration)}
+                      </span>
                     </div>
                     <div className="history-item-text">{it.text}</div>
                   </div>
                 );
               })}
             </div>
-          ),
+          )
         )}
       </div>
 
@@ -131,7 +133,9 @@ export function HistoryTab() {
               <div className="history-detail-meta-left">
                 <div>{timeAgo(new Date(sel.timestamp).getTime())}</div>
                 <span className="history-dot" />
-                <div className="history-detail-mono">{fmtDur(sel.duration)}</div>
+                <div className="history-detail-mono">
+                  {fmtDur(sel.duration)}
+                </div>
                 <span className="history-dot" />
                 <div>{sel.text.split(/\s+/).filter(Boolean).length} words</div>
               </div>
@@ -165,7 +169,13 @@ export function HistoryTab() {
   );
 }
 
-function IconButton({ title, children }: { title: string; children: JSX.Element }) {
+function IconButton({
+  title,
+  children,
+}: {
+  title: string;
+  children: JSX.Element;
+}) {
   return (
     <button type="button" className="history-icon-btn" title={title}>
       {children}

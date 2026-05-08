@@ -9,8 +9,8 @@
 //! the in-process X11 grab provided by `tauri-plugin-global-shortcut`.
 
 use ashpd::desktop::{
-    CreateSessionOptions,
     global_shortcuts::{BindShortcutsOptions, GlobalShortcuts, NewShortcut},
+    CreateSessionOptions,
 };
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter};

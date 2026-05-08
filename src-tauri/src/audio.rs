@@ -1,8 +1,8 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Stream, StreamConfig};
 use hound::WavWriter;
-use std::sync::{Arc, Mutex};
 use std::io::Cursor;
+use std::sync::{Arc, Mutex};
 
 const SAMPLE_RATE: u32 = 16000;
 const CHANNELS: u16 = 1;
@@ -19,7 +19,7 @@ impl AudioRecorder {
     pub fn new() -> Self {
         let config = StreamConfig {
             channels: CHANNELS,
-            sample_rate: u32::from(SAMPLE_RATE).into(),
+            sample_rate: SAMPLE_RATE,
             buffer_size: cpal::BufferSize::Default,
         };
 

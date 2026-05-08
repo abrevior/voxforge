@@ -1,8 +1,8 @@
 use crate::audio::AudioRecorder;
 use crate::config::Config;
 use crate::history::HistoryManager;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum RecordingState {

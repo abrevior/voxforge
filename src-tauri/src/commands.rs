@@ -53,9 +53,8 @@ pub fn transcribe(
 
     drop(config);
 
-    let result = tauri::async_runtime::block_on(async {
-        client.transcribe(audio_bytes, &language).await
-    });
+    let result =
+        tauri::async_runtime::block_on(async { client.transcribe(audio_bytes, &language).await });
 
     state.set_state(RecordingState::Idle);
 
@@ -84,10 +83,7 @@ pub fn transcribe(
 }
 
 #[tauri::command]
-pub fn inject_or_copy(
-    text: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub fn inject_or_copy(text: String, state: State<'_, AppState>) -> Result<(), String> {
     let config = state.config.lock();
     let output_mode = config.output_mode.clone();
     drop(config);
@@ -124,10 +120,7 @@ pub fn get_history(state: State<'_, AppState>) -> Result<Vec<HistoryEntry>, Stri
 }
 
 #[tauri::command]
-pub fn delete_history_entry(
-    id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub fn delete_history_entry(id: String, state: State<'_, AppState>) -> Result<(), String> {
     let history = state.history.lock();
     history.delete(&id).map_err(|e| e.to_string())
 }
@@ -145,10 +138,7 @@ pub fn get_config(state: State<'_, AppState>) -> Result<Config, String> {
 }
 
 #[tauri::command]
-pub fn save_config(
-    config: Config,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub fn save_config(config: Config, state: State<'_, AppState>) -> Result<(), String> {
     config.save().map_err(|e| e.to_string())?;
     let mut state_config = state.config.lock();
     *state_config = config;
@@ -157,7 +147,7 @@ pub fn save_config(
 
 #[tauri::command]
 pub fn get_recording_state(state: State<'_, AppState>) -> Result<String, String> {
-    Ok(serde_json::to_string(&state.get_state()).map_err(|e| e.to_string())?)
+    serde_json::to_string(&state.get_state()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -3,18 +3,14 @@ use std::process::Command;
 
 pub fn inject_text(text: &str) -> Result<()> {
     // Check for xdotool (X11)
-    let output = Command::new("which")
-        .arg("xdotool")
-        .output();
+    let output = Command::new("which").arg("xdotool").output();
 
     if output.is_ok() && output.unwrap().status.success() {
         return inject_xdotool(text);
     }
 
     // Check for ydotool (Wayland)
-    let output = Command::new("which")
-        .arg("ydotool")
-        .output();
+    let output = Command::new("which").arg("ydotool").output();
 
     if output.is_ok() && output.unwrap().status.success() {
         return inject_ydotool(text);
@@ -50,8 +46,7 @@ pub fn copy_to_clipboard(text: &str) -> Result<()> {
 
     // Init synchronously so we can surface "no display" or similar errors.
     // (Drops immediately — only used as a connectivity probe.)
-    arboard::Clipboard::new()
-        .map_err(|e| anyhow::anyhow!("clipboard init failed: {e}"))?;
+    arboard::Clipboard::new().map_err(|e| anyhow::anyhow!("clipboard init failed: {e}"))?;
 
     // Run set+wait in a background thread. wait() makes the calling thread
     // serve the clipboard until something else takes ownership, which is

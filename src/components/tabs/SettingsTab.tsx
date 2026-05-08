@@ -90,9 +90,7 @@ export function SettingsTab({ onConfigChange }: Props) {
             <Select
               value={cfg.theme}
               options={["system", "dark", "light"]}
-              onChange={(v) =>
-                update({ theme: v as Config["theme"] })
-              }
+              onChange={(v) => update({ theme: v as Config["theme"] })}
             />
           }
         />

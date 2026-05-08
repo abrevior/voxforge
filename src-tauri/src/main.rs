@@ -5,9 +5,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
-use tauri_plugin_global_shortcut::{
-    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
-};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use voxforge::{config::Config, AppState};
 
 fn show_main_window(app: &tauri::AppHandle) {
@@ -30,10 +28,8 @@ fn main() {
     let config = Config::load().unwrap_or_default();
     let app_state = AppState::new(config);
 
-    let start_shortcut =
-        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
-    let history_shortcut =
-        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyH);
+    let start_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+    let history_shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyH);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -96,16 +92,15 @@ fn main() {
                 match voxforge::portal_shortcuts::run(shortcuts_handle.clone()).await {
                     Ok(()) => log::info!("portal shortcut loop exited cleanly"),
                     Err(e) => {
-                        log::warn!(
-                            "portal global shortcuts unavailable ({e}); trying X11 grab"
-                        );
+                        log::warn!("portal global shortcuts unavailable ({e}); trying X11 grab");
                         if let Err(err) =
                             shortcuts_handle.global_shortcut().register(start_shortcut)
                         {
                             log::debug!("X11 fallback start register failed: {err}");
                         }
-                        if let Err(err) =
-                            shortcuts_handle.global_shortcut().register(history_shortcut)
+                        if let Err(err) = shortcuts_handle
+                            .global_shortcut()
+                            .register(history_shortcut)
                         {
                             log::debug!("X11 fallback history register failed: {err}");
                         }
@@ -117,13 +112,9 @@ fn main() {
             let show_i = MenuItem::with_id(app, "show", "Показати", true, None::<&str>)?;
             let settings_i =
                 MenuItem::with_id(app, "settings", "Налаштування", true, None::<&str>)?;
-            let history_i =
-                MenuItem::with_id(app, "history", "Історія", true, None::<&str>)?;
+            let history_i = MenuItem::with_id(app, "history", "Історія", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Вийти", true, None::<&str>)?;
-            let menu = Menu::with_items(
-                app,
-                &[&show_i, &settings_i, &history_i, &quit_i],
-            )?;
+            let menu = Menu::with_items(app, &[&show_i, &settings_i, &history_i, &quit_i])?;
 
             let _tray = TrayIconBuilder::with_id("main-tray")
                 .icon(tauri::include_image!("icons/tray-icon.png"))

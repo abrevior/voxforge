@@ -59,7 +59,9 @@ export function RecordTab({ micStyle }: Props) {
         </div>
         <div className="hero-text">
           <div className="hero-title">Ready</div>
-          <div className="hero-subtitle">Press the hotkey to start recording</div>
+          <div className="hero-subtitle">
+            Press the hotkey to start recording
+          </div>
         </div>
         <div className="hotkey-card">
           <HotkeyRow keys={["Ctrl", "Shift", "Space"]} label="Record" />

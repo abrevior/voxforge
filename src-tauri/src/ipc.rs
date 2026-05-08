@@ -41,7 +41,10 @@ pub async fn start_listener(app: AppHandle) -> Result<()> {
     // If a socket file exists, see whether something's actually listening.
     if path.exists() {
         if UnixStream::connect(&path).await.is_ok() {
-            anyhow::bail!("another VoxForge instance is already listening on {}", path.display());
+            anyhow::bail!(
+                "another VoxForge instance is already listening on {}",
+                path.display()
+            );
         }
         let _ = std::fs::remove_file(&path);
     }
@@ -103,12 +106,15 @@ async fn handle(app: AppHandle, stream: UnixStream) {
             }
         }
         "overlay-show" | "overlay-recording" => {
-            if let Err(e) = crate::overlay::set_state(&app, crate::overlay::OverlayState::Recording) {
+            if let Err(e) = crate::overlay::set_state(&app, crate::overlay::OverlayState::Recording)
+            {
                 log::warn!("ipc overlay-show failed: {e}");
             }
         }
         "overlay-transcribing" => {
-            if let Err(e) = crate::overlay::set_state(&app, crate::overlay::OverlayState::Transcribing) {
+            if let Err(e) =
+                crate::overlay::set_state(&app, crate::overlay::OverlayState::Transcribing)
+            {
                 log::warn!("ipc overlay-transcribing failed: {e}");
             }
         }

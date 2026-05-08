@@ -39,6 +39,9 @@ jobs:
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev \
             xdotool
+          # libfuse2 is required by linuxdeploy AppImage during bundling.
+          # Ubuntu 24.04 renamed the package to libfuse2t64; fall back to libfuse2 on 22.04.
+          sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

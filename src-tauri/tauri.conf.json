@@ -1,6 +1,6 @@
 {
   "productName": "VoxForge",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "identifier": "app.voxforge",
   "build": {
     "beforeDevCommand": "vite",
@@ -30,6 +30,7 @@
   },
   "bundle": {
     "active": true,
+    "category": "Utility",
     "targets": [
       "deb",
       "appimage"
@@ -48,7 +49,11 @@
         "depends": [
           "xdotool",
           "libssl3"
-        ]
+        ],
+        "section": "utils",
+        "priority": "optional",
+        "postInstallScript": "scripts/postinst.sh",
+        "postRemoveScript": "scripts/postrm.sh"
       },
       "appimage": {
         "bundleMediaFramework": false

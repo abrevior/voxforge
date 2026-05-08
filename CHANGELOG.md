@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-05-08
+
+### Fixed
+- `.deb` package version mismatch (was packaging as `0.1.0` even when tagged `0.2.0`) — synced version in `tauri.conf.json` with `Cargo.toml` and `package.json`
+- Missing application icon after `.deb` installation — added `postinst`/`postrm` scripts to refresh `gtk-update-icon-cache` and `update-desktop-database`
+- Empty `Categories=` field in `.desktop` entry — set `bundle.category` to `Utility` so the launcher appears in the menu
+
+### Changed
+- `.deb` control metadata now sets `Section: utils` and `Priority: optional`
+
+---
+
 ## [0.2.0] - 2026-04-27
 
 ### Added

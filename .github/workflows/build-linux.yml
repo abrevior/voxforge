@@ -124,7 +124,7 @@ jobs:
             ./VoxForge_*.AppImage
 
             # DEB
-            sudo apt install ./voxforge_*.deb
+            sudo apt install ./VoxForge_*.deb
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

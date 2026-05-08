@@ -76,7 +76,7 @@ jobs:
         continue-on-error: true
 
       - name: Build Tauri app
-        run: npm run build:frontend && npx tauri build --verbose
+        run: npm run build
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1
 
@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: voxforge-x86_64.AppImage
-          path: src-tauri/target/release/bundle/appimage/voxforge_*.AppImage*
+          path: src-tauri/target/release/bundle/appimage/VoxForge_*.AppImage*
           if-no-files-found: ignore
 
       - name: Upload deb package
@@ -106,7 +106,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            src-tauri/target/release/bundle/appimage/voxforge_*.AppImage*
+            src-tauri/target/release/bundle/appimage/VoxForge_*.AppImage*
             src-tauri/target/release/bundle/deb/*.deb
           body: |
             ## VoxForge Release
@@ -120,8 +120,8 @@ jobs:
             #### Installation
             ```bash
             # AppImage
-            chmod +x voxforge_*.AppImage
-            ./voxforge_*.AppImage
+            chmod +x VoxForge_*.AppImage
+            ./VoxForge_*.AppImage
 
             # DEB
             sudo apt install ./voxforge_*.deb

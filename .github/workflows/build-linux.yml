@@ -73,7 +73,7 @@ jobs:
         continue-on-error: true
 
       - name: Build Tauri app
-        run: npm run build
+        run: npm run build:frontend && npx tauri build --verbose
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1
 

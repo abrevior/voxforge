@@ -14,6 +14,8 @@ export interface Config {
   show_overlay: boolean;
   auto_paste: boolean;
   punctuation: boolean;
+  overlay_x: number | null;
+  overlay_y: number | null;
 }
 
 export interface HistoryEntry {

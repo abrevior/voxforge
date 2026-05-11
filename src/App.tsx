@@ -84,18 +84,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        await invoke("set_overlay_visible", {
-          visible: recordingState !== "idle",
-        });
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, [recordingState]);
-
-  useEffect(() => {
     if (!statusMsg) return;
     const t = setTimeout(() => setStatusMsg(null), 6000);
     return () => clearTimeout(t);

@@ -27,6 +27,9 @@ export function SettingsTab({ onConfigChange }: Props) {
     onConfigChange(next);
     try {
       await invoke("save_config", { config: next });
+      if ("show_overlay" in patch) {
+        await invoke("set_overlay_visible", { visible: next.show_overlay });
+      }
     } catch (e) {
       console.error("save_config failed", e);
     }
@@ -107,7 +110,7 @@ export function SettingsTab({ onConfigChange }: Props) {
         />
         <Row
           label="Show overlay"
-          hint="Floating recorder pill while recording"
+          hint="Always-on-top floating pill — drag to move"
           control={
             <Toggle
               on={cfg.show_overlay}

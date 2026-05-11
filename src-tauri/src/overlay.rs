@@ -650,7 +650,7 @@ pub fn set_overlay_visible<R: Runtime>(
     visible: bool,
 ) -> Result<(), String> {
     if visible {
-        imp::set_state(app, OverlayState::Recording)
+        imp::set_state(app, OverlayState::Idle)
     } else {
         imp::set_state(app, OverlayState::Hidden)
     }

@@ -98,6 +98,30 @@ mod imp {
             }
         }
 
+        // Persist the window position after the user stops dragging. configure
+        // fires per pixel during a move, so debounce ~600 ms before writing.
+        let save_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+        let save_app = app.clone();
+        window.connect_configure_event(move |w, _ev| {
+            if let Some(id) = save_timer.borrow_mut().take() {
+                id.remove();
+            }
+            let w2 = w.clone();
+            let app2 = save_app.clone();
+            let timer_slot = save_timer.clone();
+            let id = glib::timeout_add_local_once(std::time::Duration::from_millis(600), move || {
+                *timer_slot.borrow_mut() = None;
+                let (x, y) = w2.position();
+                let st: tauri::State<'_, AppState> = app2.state();
+                let mut cfg = st.config.lock();
+                cfg.overlay_x = Some(x);
+                cfg.overlay_y = Some(y);
+                let _ = cfg.save();
+            });
+            *save_timer.borrow_mut() = Some(id);
+            false // not handled — let GTK keep processing the configure event
+        });
+
         // Whole pill is the input target: press+drag moves the window, a plain
         // click (press+release without movement) toggles recording.
         let evt = gtk::EventBox::new();

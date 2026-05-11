@@ -28,6 +28,11 @@ pub struct Config {
     pub auto_paste: bool,
     #[serde(default = "default_true")]
     pub punctuation: bool,
+
+    #[serde(default)]
+    pub overlay_x: Option<i32>,
+    #[serde(default)]
+    pub overlay_y: Option<i32>,
 }
 
 fn default_theme() -> String {
@@ -58,6 +63,8 @@ impl Default for Config {
             show_overlay: true,
             auto_paste: true,
             punctuation: true,
+            overlay_x: None,
+            overlay_y: None,
         }
     }
 }
@@ -93,5 +100,34 @@ impl Config {
         let proj_dirs = ProjectDirs::from("", "", "voxforge")
             .ok_or_else(|| anyhow::anyhow!("Could not determine data directory"))?;
         Ok(proj_dirs.data_dir().join("history.db"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MINIMAL_JSON: &str = r#"{
+        "openai_api_key":"","hotkey_start":"","hotkey_stop":"","hotkey_history":"",
+        "language":"","model":"","ui_language":"","openai_api_base":"","output_mode":"inject"
+    }"#;
+
+    #[test]
+    fn config_without_overlay_pos_defaults_to_none() {
+        let cfg: Config = serde_json::from_str(MINIMAL_JSON).unwrap();
+        assert_eq!(cfg.overlay_x, None);
+        assert_eq!(cfg.overlay_y, None);
+    }
+
+    #[test]
+    fn config_with_overlay_pos_parses() {
+        let json = r#"{
+            "openai_api_key":"","hotkey_start":"","hotkey_stop":"","hotkey_history":"",
+            "language":"","model":"","ui_language":"","openai_api_base":"","output_mode":"inject",
+            "overlay_x":120,"overlay_y":640
+        }"#;
+        let cfg: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.overlay_x, Some(120));
+        assert_eq!(cfg.overlay_y, Some(640));
     }
 }

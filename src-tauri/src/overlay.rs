@@ -32,11 +32,12 @@ pub enum OverlayState {
 mod imp {
     use super::*;
     use std::cell::RefCell;
+    use std::rc::Rc;
     use std::sync::Arc;
     use std::time::Instant;
 
     use gtk::cairo::Context;
-    use gtk::gdk::WindowTypeHint;
+    use gtk::gdk::{EventMask, WindowTypeHint};
     use gtk::glib;
     use gtk::prelude::*;
     use parking_lot::Mutex;
@@ -97,14 +98,66 @@ mod imp {
             }
         }
 
-        // Click-anywhere toggle while recording — the app's main click target.
+        // Whole pill is the input target: press+drag moves the window, a plain
+        // click (press+release without movement) toggles recording.
         let evt = gtk::EventBox::new();
         evt.set_above_child(false);
         evt.set_visible_window(false);
+        // POINTER_MOTION lets us detect a drag; the toplevel's GdkWindow is the
+        // one that actually carries the mask, so add it on the window too.
+        window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON1_MOTION_MASK);
+
+        #[derive(Default)]
+        struct DragTrack {
+            press: Option<(f64, f64)>, // root coords at button-press
+            dragged: bool,
+        }
+        let drag: Rc<RefCell<DragTrack>> = Rc::new(RefCell::new(DragTrack::default()));
+
+        let drag_press = drag.clone();
+        evt.connect_button_press_event(move |_w, ev| {
+            if ev.button() == 1 {
+                let (x, y) = ev.root();
+                *drag_press.borrow_mut() = DragTrack {
+                    press: Some((x, y)),
+                    dragged: false,
+                };
+            }
+            glib::Propagation::Proceed
+        });
+
+        let drag_move = drag.clone();
+        let win_for_drag = window.clone();
+        evt.connect_motion_notify_event(move |_w, ev| {
+            let mut d = drag_move.borrow_mut();
+            if let Some((px, py)) = d.press {
+                if !d.dragged {
+                    let (x, y) = ev.root();
+                    if (x - px).abs() > 4.0 || (y - py).abs() > 4.0 {
+                        d.dragged = true;
+                        win_for_drag.begin_move_drag(1, x as i32, y as i32, ev.time());
+                    }
+                }
+            }
+            glib::Propagation::Proceed
+        });
+
+        let drag_release = drag.clone();
         let toggle_app = app.clone();
-        evt.connect_button_press_event(move |_, _| {
-            request_toggle(&toggle_app);
-            glib::Propagation::Stop
+        evt.connect_button_release_event(move |_w, ev| {
+            if ev.button() == 1 {
+                let was_drag = {
+                    let mut d = drag_release.borrow_mut();
+                    let was = d.dragged;
+                    d.press = None;
+                    d.dragged = false;
+                    was
+                };
+                if !was_drag {
+                    request_toggle(&toggle_app);
+                }
+            }
+            glib::Propagation::Proceed
         });
 
         let stack_overlay = gtk::Overlay::new();

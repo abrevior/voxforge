@@ -9,7 +9,7 @@ pub const H: i32 = 36;
 const BARS: usize = 28;
 const BOTTOM_MARGIN: i32 = 80;
 const RMS_TICK_MS: u64 = 33;
-const DONE_AUTOHIDE_MS: u64 = 2200;
+const DONE_LINGER_MS: u64 = 3000;
 
 /// Default overlay position: horizontally centered, `BOTTOM_MARGIN` px above
 /// the bottom of the given monitor geometry.
@@ -22,6 +22,7 @@ fn default_overlay_pos(geo_x: i32, geo_y: i32, geo_w: i32, geo_h: i32) -> (i32, 
 #[derive(Clone, Debug)]
 pub enum OverlayState {
     Hidden,
+    Idle,
     Recording,
     Transcribing,
     Done(String),
@@ -78,12 +79,21 @@ mod imp {
         window.set_default_size(W, H);
         window.set_size_request(W, H);
 
-        if let Some(display) = gtk::gdk::Display::default() {
-            if let Some(monitor) = display.primary_monitor() {
-                let geo = monitor.geometry();
-                let x = geo.x() + (geo.width() - W) / 2;
-                let y = geo.y() + geo.height() - H - BOTTOM_MARGIN;
-                window.move_(x, y);
+        let (saved_x, saved_y) = {
+            let st: tauri::State<'_, AppState> = app.state();
+            let cfg = st.config.lock();
+            (cfg.overlay_x, cfg.overlay_y)
+        };
+        match (saved_x, saved_y) {
+            (Some(x), Some(y)) => window.move_(x, y),
+            _ => {
+                if let Some(display) = gtk::gdk::Display::default() {
+                    if let Some(monitor) = display.primary_monitor() {
+                        let geo = monitor.geometry();
+                        let (x, y) = default_overlay_pos(geo.x(), geo.y(), geo.width(), geo.height());
+                        window.move_(x, y);
+                    }
+                }
             }
         }
 
@@ -115,6 +125,8 @@ mod imp {
         stack.set_halign(gtk::Align::Fill);
 
         let history: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(vec![0.0; BARS]));
+
+        stack.add_named(&build_idle_row(), "idle");
 
         let (rec_row, rec_dur_label) = build_recording_row(history.clone());
         stack.add_named(&rec_row, "recording");
@@ -148,6 +160,10 @@ mod imp {
             });
         });
 
+        // Show the calm idle pill now (no-op if the user disabled the overlay —
+        // set_state() gates on config.show_overlay).
+        let _ = set_state(app, OverlayState::Idle);
+
         Ok(())
     }
 
@@ -165,9 +181,24 @@ mod imp {
                     return;
                 };
 
-                // Cancel any pending auto-hide whenever state changes.
+                // Cancel any pending done-linger timer whenever state changes.
                 if let Some(id) = ov.auto_hide.borrow_mut().take() {
                     id.remove();
+                }
+
+                // Respect the user's "show overlay" preference: when off, the
+                // window stays hidden regardless of the requested state.
+                let show_overlay = app_for_main
+                    .state::<AppState>()
+                    .config
+                    .lock()
+                    .show_overlay;
+                if !show_overlay {
+                    ov.window.hide();
+                    stop_polling_inner(ov);
+                    ov.spinner.stop();
+                    *ov.elapsed_start.borrow_mut() = None;
+                    return;
                 }
 
                 log::info!("overlay: state={:?}", state_for_main);
@@ -179,11 +210,21 @@ mod imp {
                         *ov.elapsed_start.borrow_mut() = None;
                         clear_history(ov);
                     }
+                    OverlayState::Idle => {
+                        ov.stack.set_visible_child_name("idle");
+                        ov.spinner.stop();
+                        stop_polling_inner(ov);
+                        *ov.elapsed_start.borrow_mut() = None;
+                        clear_history(ov);
+                        ov.window.show_all();
+                        ov.window.set_keep_above(true);
+                    }
                     OverlayState::Recording => {
                         *ov.elapsed_start.borrow_mut() = Some(Instant::now());
                         ov.stack.set_visible_child_name("recording");
                         ov.spinner.stop();
                         ov.window.show_all();
+                        ov.window.set_keep_above(true);
                         start_polling_inner(&app_for_main, ov);
                     }
                     OverlayState::Transcribing => {
@@ -195,6 +236,7 @@ mod imp {
                         update_duration_labels(ov);
                         stop_polling_inner(ov);
                         ov.window.show_all();
+                        ov.window.set_keep_above(true);
                     }
                     OverlayState::Done(text) => {
                         ov.done_label.set_text(text);
@@ -202,12 +244,13 @@ mod imp {
                         ov.spinner.stop();
                         stop_polling_inner(ov);
                         ov.window.show_all();
+                        ov.window.set_keep_above(true);
 
                         let app_after = app_for_main.clone();
                         let id = glib::timeout_add_local_once(
-                            std::time::Duration::from_millis(DONE_AUTOHIDE_MS),
+                            std::time::Duration::from_millis(DONE_LINGER_MS),
                             move || {
-                                let _ = set_state(&app_after, OverlayState::Hidden);
+                                let _ = set_state(&app_after, OverlayState::Idle);
                             },
                         );
                         *ov.auto_hide.borrow_mut() = Some(id);
@@ -216,6 +259,35 @@ mod imp {
             });
         })
         .map_err(|e| e.to_string())
+    }
+
+    fn build_idle_row() -> gtk::Box {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        row.set_margin_start(16);
+        row.set_margin_end(16);
+        row.set_valign(gtk::Align::Center);
+        row.set_halign(gtk::Align::Center);
+
+        // Muted dot.
+        let dot = gtk::DrawingArea::new();
+        dot.set_size_request(8, 8);
+        dot.set_valign(gtk::Align::Center);
+        dot.connect_draw(|w, cr| {
+            let sz = w.allocated_width().min(w.allocated_height()) as f64;
+            let r = sz / 2.0;
+            cr.set_source_rgba(154.0 / 255.0, 166.0 / 255.0, 184.0 / 255.0, 0.65);
+            cr.arc(r, r, r, 0.0, std::f64::consts::TAU);
+            let _ = cr.fill();
+            glib::Propagation::Proceed
+        });
+        row.pack_start(&dot, false, false, 0);
+
+        let lbl = gtk::Label::new(None);
+        lbl.set_markup("<span size='11000' foreground='#8b96a8' weight='500'>VoxForge</span>");
+        lbl.set_valign(gtk::Align::Center);
+        row.pack_start(&lbl, false, false, 0);
+
+        row
     }
 
     fn build_recording_row(history: Arc<Mutex<Vec<f32>>>) -> (gtk::Box, gtk::Label) {

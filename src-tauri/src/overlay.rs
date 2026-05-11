@@ -11,6 +11,14 @@ const BOTTOM_MARGIN: i32 = 80;
 const RMS_TICK_MS: u64 = 33;
 const DONE_AUTOHIDE_MS: u64 = 2200;
 
+/// Default overlay position: horizontally centered, `BOTTOM_MARGIN` px above
+/// the bottom of the given monitor geometry.
+fn default_overlay_pos(geo_x: i32, geo_y: i32, geo_w: i32, geo_h: i32) -> (i32, i32) {
+    let x = geo_x + (geo_w - W) / 2;
+    let y = geo_y + geo_h - H - BOTTOM_MARGIN;
+    (x, y)
+}
+
 #[derive(Clone, Debug)]
 pub enum OverlayState {
     Hidden,
@@ -518,4 +526,23 @@ pub fn set_overlay_visible<R: Runtime>(
     _visible: bool,
 ) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_pos_centers_horizontally_and_sits_above_bottom() {
+        let (x, y) = default_overlay_pos(0, 0, 1920, 1080);
+        assert_eq!(x, (1920 - W) / 2);
+        assert_eq!(y, 1080 - H - 80); // BOTTOM_MARGIN = 80
+    }
+
+    #[test]
+    fn default_pos_respects_monitor_origin() {
+        let (x, y) = default_overlay_pos(1920, 0, 1280, 720);
+        assert_eq!(x, 1920 + (1280 - W) / 2);
+        assert_eq!(y, 720 - H - 80);
+    }
 }

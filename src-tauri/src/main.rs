@@ -23,6 +23,16 @@ fn hide_main_window(app: &tauri::AppHandle) {
 }
 
 fn main() {
+    // Run under X11 (XWayland on Wayland sessions) so the overlay's
+    // `_NET_WM_STATE_ABOVE` ("keep above") is actually honored — Wayland
+    // compositors like Mutter ignore client-driven stacking for normal
+    // toplevels. Must be set before GTK initializes. Respect an explicit
+    // user override.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("GDK_BACKEND").is_none() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
+
     env_logger::init();
 
     let config = Config::load().unwrap_or_default();

@@ -36,25 +36,25 @@ pub fn stop_recording(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<
 }
 
 #[tauri::command]
-pub fn transcribe(
+pub async fn transcribe(
     audio_bytes: Vec<u8>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
     state.set_state(RecordingState::Processing);
 
-    let config = state.config.lock();
-    let client = TranscribeClient::new(
-        config.openai_api_key.clone(),
-        config.openai_api_base.clone(),
-        config.model.clone(),
-    );
-    let language = config.language.clone();
+    let (api_key, api_base, model, language) = {
+        let config = state.config.lock();
+        (
+            config.openai_api_key.clone(),
+            config.openai_api_base.clone(),
+            config.model.clone(),
+            config.language.clone(),
+        )
+    };
+    let client = TranscribeClient::new(api_key, api_base, model);
 
-    drop(config);
-
-    let result =
-        tauri::async_runtime::block_on(async { client.transcribe(audio_bytes, &language).await });
+    let result = client.transcribe(audio_bytes, &language).await;
 
     state.set_state(RecordingState::Idle);
 

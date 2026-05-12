@@ -160,6 +160,19 @@ mod imp {
             glib::Propagation::Proceed
         });
 
+        // Belt-and-suspenders: re-assert keep-above periodically while visible.
+        // On X11 this re-applies _NET_WM_STATE_ABOVE if a transition cleared it;
+        // on Wayland it is a harmless no-op (the compositor controls stacking).
+        {
+            let w = window.clone();
+            glib::timeout_add_local(std::time::Duration::from_millis(2000), move || {
+                if w.is_visible() {
+                    w.set_keep_above(true);
+                }
+                glib::ControlFlow::Continue
+            });
+        }
+
         #[derive(Default)]
         struct DragTrack {
             press: Option<(f64, f64)>, // root coords at button-press
@@ -587,6 +600,9 @@ mod imp {
                 let _ = tauri::Emitter::emit(app, "hotkey:start", ());
             }
             RecordingState::Recording => {
+                // Flip the pill to "transcribing" right away so the click feels
+                // responsive; React's stop_recording will redundantly re-set it.
+                let _ = set_state(app, OverlayState::Transcribing);
                 let _ = tauri::Emitter::emit(app, "hotkey:stop", ());
             }
             RecordingState::Processing => {}

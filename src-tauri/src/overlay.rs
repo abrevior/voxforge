@@ -105,7 +105,8 @@ mod imp {
                 if let Some(display) = gtk::gdk::Display::default() {
                     if let Some(monitor) = display.primary_monitor() {
                         let geo = monitor.geometry();
-                        let (x, y) = default_overlay_pos(geo.x(), geo.y(), geo.width(), geo.height());
+                        let (x, y) =
+                            default_overlay_pos(geo.x(), geo.y(), geo.width(), geo.height());
                         window.move_(x, y);
                     }
                 }
@@ -123,15 +124,16 @@ mod imp {
             let w2 = w.clone();
             let app2 = save_app.clone();
             let timer_slot = save_timer.clone();
-            let id = glib::timeout_add_local_once(std::time::Duration::from_millis(600), move || {
-                *timer_slot.borrow_mut() = None;
-                let (x, y) = w2.position();
-                let st: tauri::State<'_, AppState> = app2.state();
-                let mut cfg = st.config.lock();
-                cfg.overlay_x = Some(x);
-                cfg.overlay_y = Some(y);
-                let _ = cfg.save();
-            });
+            let id =
+                glib::timeout_add_local_once(std::time::Duration::from_millis(600), move || {
+                    *timer_slot.borrow_mut() = None;
+                    let (x, y) = w2.position();
+                    let st: tauri::State<'_, AppState> = app2.state();
+                    let mut cfg = st.config.lock();
+                    cfg.overlay_x = Some(x);
+                    cfg.overlay_y = Some(y);
+                    let _ = cfg.save();
+                });
             *save_timer.borrow_mut() = Some(id);
             false // not handled — let GTK keep processing the configure event
         });
@@ -307,11 +309,7 @@ mod imp {
 
                 // Respect the user's "show overlay" preference: when off, the
                 // window stays hidden regardless of the requested state.
-                let show_overlay = app_for_main
-                    .state::<AppState>()
-                    .config
-                    .lock()
-                    .show_overlay;
+                let show_overlay = app_for_main.state::<AppState>().config.lock().show_overlay;
                 if !show_overlay {
                     ov.window.hide();
                     stop_polling_inner(ov);

@@ -79,6 +79,9 @@ mod imp {
         }
         window.set_default_size(W, H);
         window.set_size_request(W, H);
+        // The pill has no decorations and should stay put: refuse WM close
+        // requests so it can only be turned off via Settings.
+        window.connect_delete_event(|_w, _ev| glib::Propagation::Stop);
 
         let (saved_x, saved_y) = {
             let st: tauri::State<'_, AppState> = app.state();
@@ -122,14 +125,18 @@ mod imp {
             false // not handled — let GTK keep processing the configure event
         });
 
-        // Whole pill is the input target: press+drag moves the window, a plain
-        // click (press+release without movement) toggles recording.
-        let evt = gtk::EventBox::new();
-        evt.set_above_child(false);
-        evt.set_visible_window(false);
-        // POINTER_MOTION lets us detect a drag; the toplevel's GdkWindow is the
-        // one that actually carries the mask, so add it on the window too.
-        window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON1_MOTION_MASK);
+        // The whole pill is the input target: press+drag moves the window, a
+        // plain click (press+release without movement) toggles recording. The
+        // handlers live on the toplevel GdkWindow — unhandled button/motion
+        // events from the no-window children propagate up to it, and it carries
+        // the masks reliably (a no-window EventBox depends on its parent for
+        // event delivery, which proved flaky here).
+        window.add_events(
+            EventMask::BUTTON_PRESS_MASK
+                | EventMask::BUTTON_RELEASE_MASK
+                | EventMask::POINTER_MOTION_MASK
+                | EventMask::BUTTON1_MOTION_MASK,
+        );
 
         #[derive(Default)]
         struct DragTrack {
@@ -139,7 +146,7 @@ mod imp {
         let drag: Rc<RefCell<DragTrack>> = Rc::new(RefCell::new(DragTrack::default()));
 
         let drag_press = drag.clone();
-        evt.connect_button_press_event(move |_w, ev| {
+        window.connect_button_press_event(move |_w, ev| {
             if ev.button() == 1 {
                 let (x, y) = ev.root();
                 *drag_press.borrow_mut() = DragTrack {
@@ -151,15 +158,14 @@ mod imp {
         });
 
         let drag_move = drag.clone();
-        let win_for_drag = window.clone();
-        evt.connect_motion_notify_event(move |_w, ev| {
+        window.connect_motion_notify_event(move |w, ev| {
             let mut d = drag_move.borrow_mut();
             if let Some((px, py)) = d.press {
                 if !d.dragged {
                     let (x, y) = ev.root();
                     if (x - px).abs() > 4.0 || (y - py).abs() > 4.0 {
                         d.dragged = true;
-                        win_for_drag.begin_move_drag(1, x as i32, y as i32, ev.time());
+                        w.begin_move_drag(1, x as i32, y as i32, ev.time());
                     }
                 }
             }
@@ -168,7 +174,7 @@ mod imp {
 
         let drag_release = drag.clone();
         let toggle_app = app.clone();
-        evt.connect_button_release_event(move |_w, ev| {
+        window.connect_button_release_event(move |_w, ev| {
             if ev.button() == 1 {
                 let was_drag = {
                     let mut d = drag_release.borrow_mut();
@@ -216,11 +222,10 @@ mod imp {
 
         stack_overlay.add_overlay(&stack);
 
-        evt.add(&stack_overlay);
-        window.add(&evt);
+        window.add(&stack_overlay);
 
         // Realize children so first show_all() doesn't flicker.
-        evt.show_all();
+        stack_overlay.show_all();
 
         OVERLAY.with(|cell| {
             *cell.borrow_mut() = Some(Overlay {

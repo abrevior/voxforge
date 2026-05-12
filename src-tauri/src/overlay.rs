@@ -647,7 +647,10 @@ mod imp {
         }
         let bar_w = (w / n).max(1.0) - 1.0;
         for (i, v) in snap.iter().enumerate() {
-            let pct = ((*v as f64) * 2.2).clamp(0.06, 1.0);
+            // Perceptual curve: get_rms_level() is already a linear 0..1 level,
+            // and quiet speech lands near the bottom of it — sqrt lifts the low
+            // end so soft voices still visibly move the bars.
+            let pct = (*v as f64).sqrt().clamp(0.05, 1.0);
             let bar_h = pct * h * 0.9;
             let x = i as f64 * (bar_w + 1.0);
             let y = (h - bar_h) / 2.0;

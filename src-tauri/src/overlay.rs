@@ -69,6 +69,7 @@ mod imp {
         window.set_skip_taskbar_hint(true);
         window.set_skip_pager_hint(true);
         window.set_keep_above(true);
+        window.stick(); // show on every workspace / virtual desktop
         window.set_accept_focus(false);
         window.set_type_hint(WindowTypeHint::Utility);
         window.set_app_paintable(true);
@@ -168,6 +169,7 @@ mod imp {
             glib::timeout_add_local(std::time::Duration::from_millis(2000), move || {
                 if w.is_visible() {
                     w.set_keep_above(true);
+                    w.stick();
                 }
                 glib::ControlFlow::Continue
             });
@@ -552,10 +554,11 @@ mod imp {
         }
     }
 
-    /// Map the pill, re-assert keep-above, and pull it to the top of the stack.
+    /// Map the pill, re-assert keep-above + sticky, and pull it to the top.
     fn show_on_top(w: &gtk::Window) {
         w.show_all();
         w.set_keep_above(true);
+        w.stick();
         if let Some(gw) = w.window() {
             gw.raise();
         }

@@ -82,6 +82,16 @@ mod imp {
         // The pill has no decorations and should stay put: refuse WM close
         // requests so it can only be turned off via Settings.
         window.connect_delete_event(|_w, _ev| glib::Propagation::Stop);
+        // Hand cursor over the whole pill so it reads as interactive (clickable
+        // + draggable). Child windows inherit it (their cursor is NULL).
+        window.connect_realize(|w| {
+            if let Some(gw) = w.window() {
+                let display = gw.display();
+                let cursor = gtk::gdk::Cursor::from_name(&display, "pointer")
+                    .or_else(|| gtk::gdk::Cursor::from_name(&display, "hand2"));
+                gw.set_cursor(cursor.as_ref());
+            }
+        });
 
         let (saved_x, saved_y) = {
             let st: tauri::State<'_, AppState> = app.state();
@@ -135,8 +145,20 @@ mod imp {
             EventMask::BUTTON_PRESS_MASK
                 | EventMask::BUTTON_RELEASE_MASK
                 | EventMask::POINTER_MOTION_MASK
-                | EventMask::BUTTON1_MOTION_MASK,
+                | EventMask::BUTTON1_MOTION_MASK
+                | EventMask::ENTER_NOTIFY_MASK,
         );
+
+        // Re-assert "keep above" and raise the pill whenever the pointer enters
+        // it — some WMs let other windows shuffle on top of it after a focus
+        // change; this brings it back when the user reaches for it.
+        window.connect_enter_notify_event(|w, _ev| {
+            w.set_keep_above(true);
+            if let Some(gw) = w.window() {
+                gw.raise();
+            }
+            glib::Propagation::Proceed
+        });
 
         #[derive(Default)]
         struct DragTrack {
@@ -298,15 +320,13 @@ mod imp {
                         stop_polling_inner(ov);
                         *ov.elapsed_start.borrow_mut() = None;
                         clear_history(ov);
-                        ov.window.show_all();
-                        ov.window.set_keep_above(true);
+                        show_on_top(&ov.window);
                     }
                     OverlayState::Recording => {
                         *ov.elapsed_start.borrow_mut() = Some(Instant::now());
                         ov.stack.set_visible_child_name("recording");
                         ov.spinner.stop();
-                        ov.window.show_all();
-                        ov.window.set_keep_above(true);
+                        show_on_top(&ov.window);
                         start_polling_inner(&app_for_main, ov);
                     }
                     OverlayState::Transcribing => {
@@ -317,16 +337,14 @@ mod imp {
                         // ticks over while we wait, if we ever wire that.
                         update_duration_labels(ov);
                         stop_polling_inner(ov);
-                        ov.window.show_all();
-                        ov.window.set_keep_above(true);
+                        show_on_top(&ov.window);
                     }
                     OverlayState::Done(text) => {
                         ov.done_label.set_text(text);
                         ov.stack.set_visible_child_name("done");
                         ov.spinner.stop();
                         stop_polling_inner(ov);
-                        ov.window.show_all();
-                        ov.window.set_keep_above(true);
+                        show_on_top(&ov.window);
 
                         let app_after = app_for_main.clone();
                         let id = glib::timeout_add_local_once(
@@ -518,6 +536,15 @@ mod imp {
     fn stop_polling_inner(ov: &Overlay) {
         if let Some(id) = ov.timer.borrow_mut().take() {
             id.remove();
+        }
+    }
+
+    /// Map the pill, re-assert keep-above, and pull it to the top of the stack.
+    fn show_on_top(w: &gtk::Window) {
+        w.show_all();
+        w.set_keep_above(true);
+        if let Some(gw) = w.window() {
+            gw.raise();
         }
     }
 

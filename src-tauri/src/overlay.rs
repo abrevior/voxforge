@@ -8,7 +8,7 @@ pub const W: i32 = 280;
 pub const H: i32 = 36;
 const BARS: usize = 28;
 const BOTTOM_MARGIN: i32 = 80;
-const RMS_TICK_MS: u64 = 33;
+const RMS_TICK_MS: u64 = 50;
 const DONE_LINGER_MS: u64 = 3000;
 
 /// Default overlay position: horizontally centered, `BOTTOM_MARGIN` px above

@@ -52,15 +52,23 @@ impl AudioRecorder {
                     return;
                 }
 
-                let mut frames = frames.lock().unwrap();
-                for &sample in data {
-                    frames.push(sample);
+                {
+                    let mut frames = frames.lock().unwrap();
+                    for &sample in data {
+                        frames.push(sample);
+                    }
                 }
 
-                // Calculate RMS
-                let rms = frames.iter().map(|s| s * s).sum::<f32>() / frames.len() as f32;
-                let rms = rms.sqrt();
-                *rms_level.lock().unwrap() = (rms / 0.1).min(1.0);
+                // RMS over this callback chunk only (~tens of ms) — a "current
+                // loudness" meter. Averaging over the whole take, as before,
+                // made the level go flat after a few seconds. Light EMA so the
+                // bars flow instead of jittering chunk-to-chunk.
+                if !data.is_empty() {
+                    let rms = (data.iter().map(|s| s * s).sum::<f32>() / data.len() as f32).sqrt();
+                    let target = (rms / 0.1).min(1.0);
+                    let mut level = rms_level.lock().unwrap();
+                    *level = *level * 0.4 + target * 0.6;
+                }
             },
             |err| eprintln!("stream error: {}", err),
             None,

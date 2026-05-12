@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-05-12
+
+### Added
+- The recording overlay is now a **persistent, always-on-top floating pill**: it shows the calm `Idle` state at all times (a muted dot + "VoxForge"), expands to the live waveform while recording, then a spinner, then the result preview, and returns to `Idle` instead of vanishing. It no longer disappears the moment a recording ends.
+- **Draggable overlay** — press and drag the pill to move it anywhere; a plain click still toggles recording. Its position is remembered between sessions (new `overlay_x` / `overlay_y` in `config.json`).
+- Overlay is **sticky across workspaces** (`_NET_WM_STATE_STICKY`) and re-asserts "keep above" on hover, on every state change, and on a 2 s timer.
+- Hand cursor over the whole pill so it reads as interactive; the window refuses WM close requests (toggle it off via Settings → "Show overlay" instead).
+- `GDK_BACKEND=x11` is forced on Linux (XWayland on Wayland sessions) so the overlay's "keep above" is actually honored — Wayland compositors ignore client-driven stacking for normal toplevels. An explicit user `GDK_BACKEND` override is respected.
+
+### Fixed
+- Overlay no longer fails to show the "Transcribing" state or the post-transcription result — the frontend used to clobber the overlay's state on every `recordingState` change; the Rust backend now owns it outright.
+- Clicking the pill to stop now updates the visual immediately (flips to "Transcribing" right away instead of waiting for the React round trip, which could land after transcription and skip the spinner).
+- Drag/click events are handled on the toplevel window rather than a no-window `EventBox` that depended on its parent for delivery (which was flaky).
+- Waveform now tracks the voice for the whole recording: RMS was averaged over the entire take, so the level went flat ("one line") after a few seconds — it's now computed over the current audio chunk, with a light EMA, and the scroll tick was relaxed (33 ms → 50 ms) for a calmer wave. Quiet speech now visibly moves the bars (perceptual sqrt curve).
+- The `show_overlay` setting is now actually wired to the overlay (it previously had no effect).
+
+### Changed
+- `transcribe` is now an async command so the network call never blocks the GTK main loop.
+
+---
+
 ## [0.2.3] - 2026-05-09
 
 ### Fixed
